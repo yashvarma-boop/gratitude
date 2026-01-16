@@ -1,0 +1,1359 @@
+// Global State
+let currentScreen = 'entry';
+let currentFilter = 'week';
+let currentSessionId = null;
+let currentMediaGallery = [];
+let currentMediaIndex = 0;
+let isEditMode = false;
+let editingSessionId = null;
+let currentView = 'list';
+let calendarDate = new Date();
+let cameraStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let currentCameraItemId = null;
+let itemMediaData = {
+    1: [],
+    2: [],
+    3: []
+};
+
+// Gratitude Suggestions - 50 prompts
+const gratitudeSuggestions = [
+    "A person who made you smile today",
+    "Your favorite comfort food",
+    "A beautiful sunset or sunrise",
+    "A warm bed to sleep in",
+    "Access to clean water",
+    "Your favorite song or music",
+    "A good book you've read",
+    "Technology that connects you with loved ones",
+    "A kind gesture from a stranger",
+    "Your ability to learn new things",
+    "The sound of rain or nature",
+    "A memorable vacation or trip",
+    "Your favorite season of the year",
+    "A pet or animal that brings you joy",
+    "Your health and physical abilities",
+    "A skill or talent you've developed",
+    "The opportunity to pursue your dreams",
+    "A mentor or teacher who inspired you",
+    "Fresh air and the ability to breathe freely",
+    "Your favorite hobby or pastime",
+    "A moment of laughter today",
+    "The roof over your head",
+    "Access to education",
+    "Your favorite place to relax",
+    "A childhood memory that makes you smile",
+    "Modern medicine and healthcare",
+    "The ability to see, hear, taste, touch, or smell",
+    "A friend who always supports you",
+    "Your morning coffee or tea ritual",
+    "The freedom to make your own choices",
+    "A challenge that helped you grow",
+    "Your favorite movie or TV show",
+    "The changing seasons",
+    "A peaceful moment in your day",
+    "Your favorite piece of clothing",
+    "The ability to express yourself creatively",
+    "A favorite childhood toy or game",
+    "Access to transportation",
+    "Your favorite scent or smell",
+    "A kind word someone shared with you",
+    "The beauty of flowers or plants",
+    "Your imagination and ability to dream",
+    "A hot shower or relaxing bath",
+    "The gift of time with family",
+    "Your favorite form of exercise or movement",
+    "A safe place to call home",
+    "The ability to forgive and move forward",
+    "Your favorite memory from this year",
+    "The kindness of others",
+    "Simply being alive today"
+];
+
+let currentSuggestions = {
+    1: null,
+    2: null,
+    3: null
+};
+
+// Current date being viewed/edited
+let currentEntryDate = new Date();
+
+// Initialize App
+document.addEventListener('DOMContentLoaded', async () => {
+    await db.init();
+    currentEntryDate = new Date(); // Start on today
+    loadUserSettings();
+    updateWelcomeGreeting();
+    showScreen('welcome');
+    updateDateDisplay();
+    initializeSuggestions();
+});
+
+// ========== GRATITUDE SUGGESTIONS ==========
+
+// Get a random suggestion that hasn't been used for this item
+function getRandomSuggestion(itemId, usedSuggestions = []) {
+    const available = gratitudeSuggestions.filter(s => !usedSuggestions.includes(s));
+    if (available.length === 0) return gratitudeSuggestions[Math.floor(Math.random() * gratitudeSuggestions.length)];
+    return available[Math.floor(Math.random() * available.length)];
+}
+
+// Initialize suggestions for all items
+function initializeSuggestions() {
+    const usedSuggestions = [];
+    for (let i = 1; i <= 3; i++) {
+        const suggestion = getRandomSuggestion(i, usedSuggestions);
+        currentSuggestions[i] = suggestion;
+        usedSuggestions.push(suggestion);
+        document.getElementById(`suggestion-text-${i}`).textContent = suggestion;
+    }
+}
+
+// Refresh suggestion for a specific item
+function refreshSuggestion(itemId) {
+    const otherSuggestions = Object.entries(currentSuggestions)
+        .filter(([id]) => parseInt(id) !== itemId)
+        .map(([, suggestion]) => suggestion);
+
+    const newSuggestion = getRandomSuggestion(itemId, otherSuggestions);
+    currentSuggestions[itemId] = newSuggestion;
+    document.getElementById(`suggestion-text-${itemId}`).textContent = newSuggestion;
+}
+
+// Use suggestion - copy it to the textarea
+function useSuggestion(itemId) {
+    const textarea = document.querySelector(`textarea[data-item-id="${itemId}"]`);
+    const suggestion = currentSuggestions[itemId];
+
+    if (textarea && suggestion) {
+        textarea.value = suggestion;
+        textarea.focus();
+        showToast('Suggestion added! Feel free to customize it.');
+    }
+}
+
+// ========== HOME BUTTON & WELCOME SCREEN ==========
+
+function goHome() {
+    isEditMode = false;
+    editingSessionId = null;
+    currentEntryDate = new Date(); // Reset to today
+    clearForm();
+    updateWelcomeGreeting();
+    showScreen('welcome');
+}
+
+function startJournaling() {
+    loadEntryForDate(currentEntryDate);
+    showScreen('entry');
+}
+
+// ========== USER SETTINGS ==========
+
+function loadUserSettings() {
+    const userName = localStorage.getItem('userName') || '';
+    const greetingStyle = localStorage.getItem('greetingStyle') || 'auto';
+
+    if (document.getElementById('userNameInput')) {
+        document.getElementById('userNameInput').value = userName;
+    }
+    if (document.getElementById('greetingStyle')) {
+        document.getElementById('greetingStyle').value = greetingStyle;
+    }
+}
+
+function saveSettings() {
+    const userName = document.getElementById('userNameInput').value.trim();
+    const greetingStyle = document.getElementById('greetingStyle').value;
+
+    localStorage.setItem('userName', userName);
+    localStorage.setItem('greetingStyle', greetingStyle);
+
+    updateWelcomeGreeting();
+    showToast('Settings saved!');
+    goHome();
+}
+
+function showSettings() {
+    loadUserSettings();
+    showScreen('settings');
+}
+
+function updateWelcomeGreeting() {
+    const userName = localStorage.getItem('userName') || 'Sarah';
+    const greetingStyle = localStorage.getItem('greetingStyle') || 'auto';
+    const hour = new Date().getHours();
+
+    let timeGreeting = 'Good evening';
+    if (greetingStyle === 'auto') {
+        if (hour < 12) timeGreeting = 'Good morning';
+        else if (hour < 18) timeGreeting = 'Good afternoon';
+        else timeGreeting = 'Good evening';
+    } else if (greetingStyle === 'morning') {
+        timeGreeting = 'Good morning';
+    } else if (greetingStyle === 'afternoon') {
+        timeGreeting = 'Good afternoon';
+    } else if (greetingStyle === 'evening') {
+        timeGreeting = 'Good evening';
+    } else if (greetingStyle === 'simple') {
+        timeGreeting = 'Hello';
+    }
+
+    document.getElementById('welcomeGreeting').textContent = `${timeGreeting}, ${userName}.`;
+}
+
+// ========== DATE NAVIGATION ==========
+
+// Update date display
+function updateDateDisplay() {
+    const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    document.getElementById('todayDate').textContent = currentEntryDate.toLocaleDateString('en-US', options);
+}
+
+// Navigate to previous day
+function previousDay() {
+    currentEntryDate.setDate(currentEntryDate.getDate() - 1);
+    clearForm();
+    updateDateDisplay();
+    loadEntryForDate(currentEntryDate);
+    initializeSuggestions();
+}
+
+// Navigate to next day
+function nextDay() {
+    currentEntryDate.setDate(currentEntryDate.getDate() + 1);
+    clearForm();
+    updateDateDisplay();
+    loadEntryForDate(currentEntryDate);
+    initializeSuggestions();
+}
+
+// Load entry for a specific date (or show blank form)
+async function loadEntryForDate(date) {
+    const dateStr = formatDate(date);
+    const existingSession = await db.getSessionByDate(dateStr);
+
+    if (existingSession) {
+        // Load existing entry for this date
+        const sessionDetails = await db.getSessionWithDetails(existingSession.id);
+        loadExistingEntry(sessionDetails);
+
+        // Set edit mode for this session
+        isEditMode = true;
+        editingSessionId = existingSession.id;
+    } else {
+        // No entry for this date, show blank form
+        isEditMode = false;
+        editingSessionId = null;
+    }
+}
+
+// Load existing entry into form
+function loadExistingEntry(sessionDetails) {
+    sessionDetails.items.forEach(item => {
+        const textarea = document.querySelector(`textarea[data-item-id="${item.itemOrder}"]`);
+        if (textarea) {
+            textarea.value = item.textContent || '';
+        }
+
+        // Load media
+        if (item.media && item.media.length > 0) {
+            itemMediaData[item.itemOrder] = item.media.map(m => ({
+                type: m.mediaType,
+                dataUrl: m.dataUrl,
+                fileName: m.fileName,
+                fileSize: m.fileSize,
+                mimeType: m.mimeType
+            }));
+            renderMediaPreview(item.itemOrder);
+        }
+    });
+
+    showToast('Loaded today\'s entry');
+}
+
+// Screen Management
+function showScreen(screenName) {
+    // Hide all screens
+    document.querySelectorAll('.screen').forEach(screen => {
+        screen.classList.remove('active');
+    });
+
+    // Update header
+    const archiveBtn = document.getElementById('archiveBtn');
+    const homeBtn = document.getElementById('homeBtn');
+    const settingsBtn = document.getElementById('settingsBtn');
+    const shareBtn = document.getElementById('shareBtn');
+
+    // Show/hide header elements based on screen
+    switch (screenName) {
+        case 'welcome':
+            document.getElementById('welcomeScreen').classList.add('active');
+            archiveBtn.style.display = 'flex';
+            homeBtn.style.display = 'none';
+            settingsBtn.style.display = 'flex';
+            shareBtn.style.display = 'none';
+            break;
+        case 'entry':
+            document.getElementById('entryScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'none';
+            shareBtn.style.display = 'none';
+            break;
+        case 'history':
+            document.getElementById('historyScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'none';
+            shareBtn.style.display = 'none';
+            loadHistory();
+            break;
+        case 'settings':
+            document.getElementById('settingsScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'none';
+            shareBtn.style.display = 'none';
+            break;
+        case 'detail':
+            document.getElementById('detailScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'none';
+            shareBtn.style.display = 'flex';
+            shareBtn.onclick = shareCurrentEntry;
+            break;
+    }
+
+    currentScreen = screenName;
+}
+
+// Media Selection
+function selectMedia(itemId, mediaType) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = mediaType === 'image' ? 'image/*' : 'video/*';
+    input.multiple = true;
+
+    input.onchange = async (e) => {
+        const files = Array.from(e.target.files);
+
+        for (const file of files) {
+            // Validate file size
+            const maxSize = mediaType === 'image' ? 10 * 1024 * 1024 : 50 * 1024 * 1024;
+            if (file.size > maxSize) {
+                showToast(`File too large. Max size: ${mediaType === 'image' ? '10MB' : '50MB'}`);
+                continue;
+            }
+
+            // Check if already have 5 media items
+            if (itemMediaData[itemId].length >= 5) {
+                showToast('Maximum 5 media items per gratitude entry');
+                break;
+            }
+
+            // Read file as data URL
+            const dataUrl = await readFileAsDataURL(file);
+
+            itemMediaData[itemId].push({
+                type: mediaType,
+                dataUrl,
+                fileName: file.name,
+                fileSize: file.size,
+                mimeType: file.type
+            });
+        }
+
+        renderMediaPreview(itemId);
+    };
+
+    input.click();
+}
+
+// Read file as Data URL
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// Render media preview
+function renderMediaPreview(itemId) {
+    const preview = document.getElementById(`preview-${itemId}`);
+    preview.innerHTML = '';
+
+    itemMediaData[itemId].forEach((media, index) => {
+        const thumbnail = document.createElement('div');
+        thumbnail.className = 'media-thumbnail';
+
+        if (media.type === 'image') {
+            const img = document.createElement('img');
+            img.src = media.dataUrl;
+            thumbnail.appendChild(img);
+        } else {
+            const video = document.createElement('video');
+            video.src = media.dataUrl;
+            thumbnail.appendChild(video);
+
+            const playIcon = document.createElement('div');
+            playIcon.className = 'video-indicator';
+            playIcon.textContent = '▶️';
+            thumbnail.appendChild(playIcon);
+        }
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'remove-media';
+        removeBtn.textContent = '×';
+        removeBtn.onclick = (e) => {
+            e.stopPropagation();
+            removeMedia(itemId, index);
+        };
+        thumbnail.appendChild(removeBtn);
+
+        thumbnail.onclick = () => {
+            openMediaViewer(itemMediaData[itemId], index);
+        };
+
+        preview.appendChild(thumbnail);
+    });
+}
+
+// Remove media
+function removeMedia(itemId, index) {
+    itemMediaData[itemId].splice(index, 1);
+    renderMediaPreview(itemId);
+}
+
+// Save Entry
+async function saveEntry() {
+    const items = [];
+
+    // Validate and collect data
+    for (let i = 1; i <= 3; i++) {
+        const textarea = document.querySelector(`textarea[data-item-id="${i}"]`);
+        const text = textarea.value.trim();
+        const media = itemMediaData[i] || [];
+
+        // Each item must have text OR media
+        if (!text && media.length === 0) {
+            showToast(`Item ${i} must have text or media`);
+            return;
+        }
+
+        items.push({
+            text,
+            media
+        });
+    }
+
+    try {
+        if (isEditMode && editingSessionId) {
+            // Update existing session
+            const sessionId = editingSessionId;
+            await db.updateSession(sessionId, items);
+            showToast('✨ Entry updated successfully!');
+
+            // Exit edit mode
+            isEditMode = false;
+            editingSessionId = null;
+
+            // Return to detail view
+            setTimeout(() => {
+                showDetail(sessionId);
+            }, 1000);
+        } else {
+            const today = formatDate(new Date());
+
+            // Check if session already exists for today
+            const existing = await db.getSessionByDate(today);
+            if (existing) {
+                // Delete existing session
+                await db.deleteSession(existing.id);
+            }
+
+            // Create new session
+            await db.createSession(today, items);
+
+            showToast('✨ Entry saved successfully!');
+
+            // Clear form
+            setTimeout(() => {
+                clearForm();
+            }, 1000);
+        }
+    } catch (error) {
+        console.error('Save error:', error);
+        showToast('Failed to save entry');
+    }
+}
+
+// Clear form
+function clearForm() {
+    document.querySelectorAll('.item-input').forEach(input => {
+        input.value = '';
+    });
+
+    itemMediaData = { 1: [], 2: [], 3: [] };
+    [1, 2, 3].forEach(id => renderMediaPreview(id));
+}
+
+// Show History
+function showHistory() {
+    showScreen('history');
+}
+
+// Load History
+async function loadHistory() {
+    const sessions = await db.getAllSessions();
+    const filtered = db.filterSessionsByDateRange(sessions, currentFilter);
+
+    const entriesList = document.getElementById('entriesList');
+    entriesList.innerHTML = '';
+
+    if (filtered.length === 0) {
+        entriesList.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">📝</div>
+                <h3>No entries yet</h3>
+                <p>Start your gratitude journey today!</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Group sessions by date
+    const groupedByDate = {};
+    for (const session of filtered) {
+        const sessionDetails = await db.getSessionWithDetails(session.id);
+        const date = new Date(session.sessionDate);
+        const dateKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+        if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = {
+                date: date,
+                sessions: []
+            };
+        }
+        groupedByDate[dateKey].sessions.push(sessionDetails);
+    }
+
+    // Render grouped entries
+    Object.values(groupedByDate).forEach(group => {
+        const dateGroup = document.createElement('div');
+        dateGroup.className = 'history-date-group';
+
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'history-date-header';
+
+        const dateTitle = document.createElement('div');
+        dateTitle.className = 'history-date-title';
+        const dateOptions = { weekday: 'long', month: 'long', day: 'numeric' };
+        dateTitle.textContent = group.date.toLocaleDateString('en-US', dateOptions);
+        dateHeader.appendChild(dateTitle);
+
+        const dateSubtitle = document.createElement('div');
+        dateSubtitle.className = 'history-date-subtitle';
+        const year = group.date.getFullYear();
+        dateSubtitle.textContent = year;
+        dateHeader.appendChild(dateSubtitle);
+
+        dateGroup.appendChild(dateHeader);
+
+        group.sessions.forEach(session => {
+            const card = createHistoryItemCard(session);
+            dateGroup.appendChild(card);
+        });
+
+        entriesList.appendChild(dateGroup);
+    });
+}
+
+// Create history item card (for list view)
+function createHistoryItemCard(session) {
+    const card = document.createElement('div');
+    card.className = 'history-item';
+
+    const date = new Date(session.sessionDate);
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = date.toLocaleDateString('en-US', dateOptions);
+
+    let totalMediaCount = 0;
+
+    // Create preview of first 3 items
+    const previewText = session.items.map((item, index) => {
+        if (item.media) {
+            totalMediaCount += item.media.length;
+        }
+        const text = item.textContent || '';
+        return text;
+    }).filter(t => t).slice(0, 1).join(' • ');
+
+    const preview = previewText.length > 120 ? previewText.substring(0, 120) + '...' : previewText;
+
+    const previewDiv = document.createElement('div');
+    previewDiv.className = 'history-item-preview';
+    previewDiv.textContent = preview || '(Entry with media)';
+    card.appendChild(previewDiv);
+
+    if (totalMediaCount > 0) {
+        const mediaCount = document.createElement('div');
+        mediaCount.className = 'history-item-media-count';
+        mediaCount.textContent = `${totalMediaCount} attachment${totalMediaCount > 1 ? 's' : ''}`;
+        card.appendChild(mediaCount);
+    }
+
+    card.onclick = () => showDetail(session.id);
+
+    return card;
+}
+
+// Show detail
+async function showDetail(sessionId) {
+    currentSessionId = sessionId;
+    const session = await db.getSessionWithDetails(sessionId);
+
+    const detailContent = document.getElementById('detailContent');
+    detailContent.innerHTML = '';
+
+    // Create header with date
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'detail-header';
+
+    const date = new Date(session.sessionDate);
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = date.toLocaleDateString('en-US', dateOptions);
+
+    const dateHeader = document.createElement('div');
+    dateHeader.className = 'detail-date';
+    dateHeader.textContent = dateString;
+    headerDiv.appendChild(dateHeader);
+
+    const subtitle = document.createElement('div');
+    subtitle.className = 'detail-subtitle';
+    subtitle.textContent = 'Your grateful moments';
+    headerDiv.appendChild(subtitle);
+
+    detailContent.appendChild(headerDiv);
+
+    // Create items container
+    const itemsContainer = document.createElement('div');
+    itemsContainer.className = 'detail-items';
+
+    session.items.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'detail-item';
+
+        // Item header with number and label
+        const itemHeader = document.createElement('div');
+        itemHeader.className = 'detail-item-header';
+
+        const itemNumber = document.createElement('div');
+        itemNumber.className = 'detail-item-number';
+        itemNumber.textContent = index + 1;
+        itemHeader.appendChild(itemNumber);
+
+        const itemLabel = document.createElement('div');
+        itemLabel.className = 'detail-item-label';
+        itemLabel.textContent = `Grateful for`;
+        itemHeader.appendChild(itemLabel);
+
+        itemDiv.appendChild(itemHeader);
+
+        // Item text
+        if (item.textContent) {
+            const text = document.createElement('div');
+            text.className = 'detail-item-text';
+            text.textContent = item.textContent;
+            itemDiv.appendChild(text);
+        }
+
+        // Item media
+        if (item.media && item.media.length > 0) {
+            const mediaGrid = document.createElement('div');
+            mediaGrid.className = 'detail-media';
+
+            item.media.forEach((media, mediaIndex) => {
+                const mediaItem = document.createElement('div');
+                mediaItem.className = 'detail-media-item';
+
+                if (media.mediaType === 'image') {
+                    const img = document.createElement('img');
+                    img.src = media.dataUrl;
+                    mediaItem.appendChild(img);
+                } else {
+                    const video = document.createElement('video');
+                    video.src = media.dataUrl;
+                    mediaItem.appendChild(video);
+                }
+
+                mediaItem.onclick = () => {
+                    const allMedia = session.items.flatMap(i => i.media || []);
+                    const globalIndex = session.items.slice(0, index).reduce((acc, i) => acc + (i.media?.length || 0), 0) + mediaIndex;
+                    openMediaViewer(allMedia, globalIndex);
+                };
+
+                mediaGrid.appendChild(mediaItem);
+            });
+
+            itemContent.appendChild(mediaGrid);
+        }
+
+        itemDiv.appendChild(itemContent);
+        itemsContainer.appendChild(itemDiv);
+    });
+
+    detailContent.appendChild(itemsContainer);
+    showScreen('detail');
+}
+
+// Edit entry
+async function editEntry() {
+    if (!currentSessionId) return;
+
+    try {
+        // Load the session data
+        const session = await db.getSessionWithDetails(currentSessionId);
+
+        // Set edit mode
+        isEditMode = true;
+        editingSessionId = currentSessionId;
+
+        // Clear current form
+        clearForm();
+
+        // Load session data into form
+        session.items.forEach(item => {
+            const textarea = document.querySelector(`textarea[data-item-id="${item.itemOrder}"]`);
+            if (textarea) {
+                textarea.value = item.textContent || '';
+            }
+
+            // Load media
+            if (item.media && item.media.length > 0) {
+                itemMediaData[item.itemOrder] = item.media.map(m => ({
+                    type: m.mediaType,
+                    dataUrl: m.dataUrl,
+                    fileName: m.fileName,
+                    fileSize: m.fileSize,
+                    mimeType: m.mimeType
+                }));
+                renderMediaPreview(item.itemOrder);
+            }
+        });
+
+        // Update date display with the entry's date
+        const date = new Date(session.sessionDate);
+        const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+        document.getElementById('todayDate').textContent = date.toLocaleDateString('en-US', options);
+
+        // Show entry screen
+        showScreen('entry');
+        showToast('Edit mode - Update your entry');
+    } catch (error) {
+        console.error('Edit error:', error);
+        showToast('Failed to load entry for editing');
+    }
+}
+
+// Cancel edit
+function cancelEdit() {
+    if (confirm('Discard changes?')) {
+        isEditMode = false;
+        const sessionId = editingSessionId;
+        editingSessionId = null;
+        clearForm();
+        updateTodayDate();
+        showDetail(sessionId);
+    }
+}
+
+// Delete entry
+async function deleteEntry() {
+    if (!currentSessionId) return;
+
+    if (confirm('Are you sure you want to delete this entry?')) {
+        try {
+            await db.deleteSession(currentSessionId);
+            showToast('Entry deleted');
+            showScreen('history');
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('Failed to delete entry');
+        }
+    }
+}
+
+// Filter entries
+function filterEntries(rangeType) {
+    currentFilter = rangeType;
+
+    // Update active filter button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    loadHistory();
+}
+
+// Switch between list and calendar view
+function switchView(viewType) {
+    // Update active view toggle button
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.closest('.view-toggle-btn').classList.add('active');
+
+    // Show/hide views
+    if (viewType === 'list') {
+        document.getElementById('listView').classList.add('active');
+        document.getElementById('calendarView').classList.remove('active');
+    } else if (viewType === 'calendar') {
+        document.getElementById('listView').classList.remove('active');
+        document.getElementById('calendarView').classList.add('active');
+        renderCalendar();
+    }
+}
+
+// Media Viewer
+function openMediaViewer(mediaArray, startIndex) {
+    currentMediaGallery = mediaArray;
+    currentMediaIndex = startIndex;
+
+    const modal = document.getElementById('mediaModal');
+    modal.classList.add('active');
+
+    displayCurrentMedia();
+}
+
+function displayCurrentMedia() {
+    const viewer = document.getElementById('mediaViewer');
+    const counter = document.getElementById('mediaCounter');
+
+    const media = currentMediaGallery[currentMediaIndex];
+
+    viewer.innerHTML = '';
+
+    if (media.mediaType === 'image') {
+        const img = document.createElement('img');
+        img.src = media.dataUrl;
+        viewer.appendChild(img);
+    } else {
+        const video = document.createElement('video');
+        video.src = media.dataUrl;
+        video.controls = true;
+        video.autoplay = true;
+        viewer.appendChild(video);
+    }
+
+    counter.textContent = `${currentMediaIndex + 1}/${currentMediaGallery.length}`;
+}
+
+function prevMedia() {
+    if (currentMediaIndex > 0) {
+        currentMediaIndex--;
+        displayCurrentMedia();
+    }
+}
+
+function nextMedia() {
+    if (currentMediaIndex < currentMediaGallery.length - 1) {
+        currentMediaIndex++;
+        displayCurrentMedia();
+    }
+}
+
+function closeMediaModal() {
+    const modal = document.getElementById('mediaModal');
+    modal.classList.remove('active');
+
+    // Stop any playing videos
+    const video = document.querySelector('#mediaViewer video');
+    if (video) {
+        video.pause();
+    }
+}
+
+// Share current entry
+async function shareCurrentEntry() {
+    if (!currentSessionId) return;
+
+    const session = await db.getSessionWithDetails(currentSessionId);
+
+    const date = new Date(session.sessionDate);
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = date.toLocaleDateString('en-US', dateOptions);
+
+    let text = `${dateString}\n\nToday I'm grateful for:\n\n`;
+
+    session.items.forEach((item, index) => {
+        const itemText = item.textContent || '(media)';
+        text += `${index + 1}. ${itemText}\n`;
+    });
+
+    text += `\n✨ Created with Gratitude Journal`;
+
+    // Try Web Share API if available
+    if (navigator.share) {
+        try {
+            await navigator.share({
+                title: 'My Gratitude Entry',
+                text: text
+            });
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error('Share error:', error);
+                fallbackShare(text);
+            }
+        }
+    } else {
+        fallbackShare(text);
+    }
+}
+
+// Fallback share (copy to clipboard)
+function fallbackShare(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('📋 Entry copied to clipboard!');
+    }).catch(() => {
+        // Show text in modal
+        alert(text);
+    });
+}
+
+// Utility Functions
+function formatDate(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function showToast(message) {
+    const toast = document.getElementById('toast');
+    toast.textContent = message;
+    toast.classList.add('show');
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
+
+// ========== CALENDAR VIEW ==========
+
+// Switch between list and calendar views
+function switchView(viewType) {
+    currentView = viewType;
+
+    // Update toggle buttons
+    document.querySelectorAll('.toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+
+    // Show/hide views
+    if (viewType === 'list') {
+        document.getElementById('listView').classList.add('active');
+        document.getElementById('calendarView').classList.remove('active');
+    } else {
+        document.getElementById('listView').classList.remove('active');
+        document.getElementById('calendarView').classList.add('active');
+        renderCalendar();
+    }
+}
+
+// Render calendar for current month
+async function renderCalendar() {
+    const year = calendarDate.getFullYear();
+    const month = calendarDate.getMonth();
+
+    // Update header
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'];
+    document.getElementById('calendarMonthYear').textContent = `${monthNames[month]} ${year}`;
+
+    // Get all sessions
+    const allSessions = await db.getAllSessions();
+    const sessionDates = new Set(allSessions.map(s => s.sessionDate));
+
+    // Calculate calendar grid
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const startingDayOfWeek = firstDay.getDay();
+    const daysInMonth = lastDay.getDate();
+
+    // Get previous month's last days
+    const prevMonthLastDay = new Date(year, month, 0).getDate();
+
+    const grid = document.getElementById('calendarGrid');
+    grid.innerHTML = '';
+
+    // Day headers
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        grid.appendChild(header);
+    });
+
+    // Previous month days
+    for (let i = startingDayOfWeek - 1; i >= 0; i--) {
+        const day = prevMonthLastDay - i;
+        const dayCell = createCalendarDay(day, true, null);
+        grid.appendChild(dayCell);
+    }
+
+    // Current month days
+    const today = new Date();
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dateStr = formatDate(new Date(year, month, day));
+        const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+        const hasEntry = sessionDates.has(dateStr);
+
+        const dayCell = createCalendarDay(day, false, dateStr, isToday, hasEntry);
+        grid.appendChild(dayCell);
+    }
+
+    // Next month days to fill grid
+    const totalCells = grid.children.length - 7; // Subtract headers
+    const remainingCells = 42 - totalCells - 7; // 6 weeks * 7 days
+    for (let day = 1; day <= remainingCells; day++) {
+        const dayCell = createCalendarDay(day, true, null);
+        grid.appendChild(dayCell);
+    }
+}
+
+// Create calendar day cell
+function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry = false) {
+    const dayCell = document.createElement('div');
+    dayCell.className = 'calendar-day';
+
+    if (isOtherMonth) {
+        dayCell.classList.add('other-month');
+    }
+    if (isToday) {
+        dayCell.classList.add('today');
+    }
+    if (hasEntry) {
+        dayCell.classList.add('has-entry');
+    }
+
+    const dayNumber = document.createElement('div');
+    dayNumber.className = 'calendar-day-number';
+    dayNumber.textContent = day;
+    dayCell.appendChild(dayNumber);
+
+    if (hasEntry) {
+        const indicator = document.createElement('div');
+        indicator.className = 'calendar-day-indicator';
+        dayCell.appendChild(indicator);
+    }
+
+    if (!isOtherMonth && dateStr) {
+        dayCell.onclick = () => openCalendarDate(dateStr);
+    }
+
+    return dayCell;
+}
+
+// Open entry for selected calendar date
+async function openCalendarDate(dateStr) {
+    const session = await db.getSessionByDate(dateStr);
+    const detailPane = document.getElementById('calendarDetailPane');
+
+    if (session) {
+        // Show entry details in side pane
+        const sessionDetails = await db.getSessionWithDetails(session.id);
+        renderCalendarDetailPane(sessionDetails);
+    } else {
+        // Show empty state
+        detailPane.innerHTML = `
+            <div class="calendar-detail-placeholder">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <p>No entry for this date</p>
+            </div>
+        `;
+    }
+}
+
+// Render calendar detail pane
+function renderCalendarDetailPane(session) {
+    const detailPane = document.getElementById('calendarDetailPane');
+    detailPane.innerHTML = '';
+
+    const detailContent = document.createElement('div');
+    detailContent.className = 'calendar-detail-content';
+
+    // Date header
+    const date = new Date(session.sessionDate);
+    const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+    const dateString = date.toLocaleDateString('en-US', dateOptions);
+
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'detail-header';
+
+    const dateHeader = document.createElement('div');
+    dateHeader.className = 'detail-date';
+    dateHeader.style.fontSize = '1.125rem';
+    dateHeader.textContent = dateString;
+    headerDiv.appendChild(dateHeader);
+
+    detailContent.appendChild(headerDiv);
+
+    // Items
+    const itemsContainer = document.createElement('div');
+    itemsContainer.className = 'detail-items';
+
+    session.items.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'detail-item';
+        itemDiv.style.padding = 'var(--spacing-md)';
+
+        const itemHeader = document.createElement('div');
+        itemHeader.className = 'detail-item-header';
+
+        const itemNumber = document.createElement('div');
+        itemNumber.className = 'detail-item-number';
+        itemNumber.style.width = '28px';
+        itemNumber.style.height = '28px';
+        itemNumber.style.fontSize = '0.875rem';
+        itemNumber.textContent = index + 1;
+        itemHeader.appendChild(itemNumber);
+
+        itemDiv.appendChild(itemHeader);
+
+        if (item.textContent) {
+            const text = document.createElement('div');
+            text.className = 'detail-item-text';
+            text.style.paddingLeft = 'calc(28px + var(--spacing-sm))';
+            text.style.fontSize = '0.9375rem';
+            text.textContent = item.textContent;
+            itemDiv.appendChild(text);
+        }
+
+        if (item.media && item.media.length > 0) {
+            const mediaGrid = document.createElement('div');
+            mediaGrid.className = 'detail-media';
+            mediaGrid.style.paddingLeft = 'calc(28px + var(--spacing-sm))';
+
+            item.media.forEach((media) => {
+                const mediaItem = document.createElement('div');
+                mediaItem.className = 'detail-media-item';
+                mediaItem.style.width = '64px';
+                mediaItem.style.height = '64px';
+
+                if (media.mediaType === 'image') {
+                    const img = document.createElement('img');
+                    img.src = media.dataUrl;
+                    mediaItem.appendChild(img);
+                } else {
+                    const video = document.createElement('video');
+                    video.src = media.dataUrl;
+                    mediaItem.appendChild(video);
+                }
+
+                mediaItem.onclick = () => showDetail(session.id);
+
+                mediaGrid.appendChild(mediaItem);
+            });
+
+            itemDiv.appendChild(mediaGrid);
+        }
+
+        itemsContainer.appendChild(itemDiv);
+    });
+
+    detailContent.appendChild(itemsContainer);
+
+    // View full button
+    const viewFullBtn = document.createElement('button');
+    viewFullBtn.className = 'primary-btn';
+    viewFullBtn.textContent = 'View Full Entry';
+    viewFullBtn.onclick = () => showDetail(session.id);
+    detailContent.appendChild(viewFullBtn);
+
+    detailPane.appendChild(detailContent);
+}
+
+// Navigate to previous month
+function previousMonth() {
+    calendarDate.setMonth(calendarDate.getMonth() - 1);
+    renderCalendar();
+}
+
+// Navigate to next month
+function nextMonth() {
+    calendarDate.setMonth(calendarDate.getMonth() + 1);
+    renderCalendar();
+}
+
+// ========== CAMERA CAPTURE ==========
+
+// Open camera modal
+async function openCamera(itemId) {
+    currentCameraItemId = itemId;
+    const modal = document.getElementById('cameraModal');
+    const video = document.getElementById('cameraPreview');
+
+    try {
+        // Request camera access
+        cameraStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user' },
+            audio: true
+        });
+
+        video.srcObject = cameraStream;
+        modal.classList.add('active');
+        showToast('Camera ready!');
+    } catch (error) {
+        console.error('Camera error:', error);
+        showToast('Unable to access camera. Please check permissions.');
+    }
+}
+
+// Close camera modal
+function closeCameraModal() {
+    const modal = document.getElementById('cameraModal');
+    modal.classList.remove('active');
+
+    // Stop camera stream
+    if (cameraStream) {
+        cameraStream.getTracks().forEach(track => track.stop());
+        cameraStream = null;
+    }
+
+    // Reset recording state
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+    }
+    mediaRecorder = null;
+    recordedChunks = [];
+
+    // Reset buttons
+    document.getElementById('startRecordBtn').style.display = 'block';
+    document.getElementById('stopRecordBtn').style.display = 'none';
+    document.getElementById('capturePhotoBtn').disabled = false;
+}
+
+// Capture photo from camera
+function capturePhoto() {
+    const video = document.getElementById('cameraPreview');
+    const canvas = document.getElementById('cameraCanvas');
+
+    // Set canvas size to video size
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Draw video frame to canvas
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    // Convert to data URL
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+
+    // Add to media
+    if (itemMediaData[currentCameraItemId].length >= 5) {
+        showToast('Maximum 5 media items per entry');
+        return;
+    }
+
+    itemMediaData[currentCameraItemId].push({
+        type: 'image',
+        dataUrl: dataUrl,
+        fileName: `photo_${Date.now()}.jpg`,
+        fileSize: dataUrl.length,
+        mimeType: 'image/jpeg'
+    });
+
+    renderMediaPreview(currentCameraItemId);
+    closeCameraModal();
+    showToast('Photo captured!');
+}
+
+// Start video recording
+function startRecording() {
+    if (!cameraStream) return;
+
+    recordedChunks = [];
+
+    try {
+        mediaRecorder = new MediaRecorder(cameraStream, {
+            mimeType: 'video/webm'
+        });
+
+        mediaRecorder.ondataavailable = (event) => {
+            if (event.data.size > 0) {
+                recordedChunks.push(event.data);
+            }
+        };
+
+        mediaRecorder.onstop = () => {
+            const blob = new Blob(recordedChunks, { type: 'video/webm' });
+
+            // Check file size (50MB limit)
+            if (blob.size > 50 * 1024 * 1024) {
+                showToast('Video too large. Maximum 50MB');
+                return;
+            }
+
+            // Convert to data URL
+            const reader = new FileReader();
+            reader.onload = () => {
+                if (itemMediaData[currentCameraItemId].length >= 5) {
+                    showToast('Maximum 5 media items per entry');
+                    return;
+                }
+
+                itemMediaData[currentCameraItemId].push({
+                    type: 'video',
+                    dataUrl: reader.result,
+                    fileName: `video_${Date.now()}.webm`,
+                    fileSize: blob.size,
+                    mimeType: 'video/webm'
+                });
+
+                renderMediaPreview(currentCameraItemId);
+                closeCameraModal();
+                showToast('Video recorded!');
+            };
+            reader.readAsDataURL(blob);
+        };
+
+        mediaRecorder.start();
+
+        // Update UI
+        document.getElementById('startRecordBtn').style.display = 'none';
+        document.getElementById('stopRecordBtn').style.display = 'block';
+        document.getElementById('capturePhotoBtn').disabled = true;
+
+        showToast('Recording started...');
+    } catch (error) {
+        console.error('Recording error:', error);
+        showToast('Unable to record video');
+    }
+}
+
+// Stop video recording
+function stopRecording() {
+    if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+
+        // Reset buttons
+        document.getElementById('startRecordBtn').style.display = 'block';
+        document.getElementById('stopRecordBtn').style.display = 'none';
+        document.getElementById('capturePhotoBtn').disabled = false;
+    }
+}
