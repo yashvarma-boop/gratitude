@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Left Hand -->
+  <path d="M220 680 Q200 650 190 620 Q180 590 180 560 Q180 530 190 510 Q200 490 220 480 Q240 470 260 480 L280 490 L300 510 Q310 530 315 550 L320 580 L340 620 L360 650 L380 670 Q390 680 390 690 L390 720 L380 750 Q370 770 350 780 L320 790 L280 790 Q250 785 230 770 Q215 755 210 735 L220 680 Z" fill="#4A5568"/>
+
+  <!-- Right Hand -->
+  <path d="M804 680 Q824 650 834 620 Q844 590 844 560 Q844 530 834 510 Q824 490 804 480 Q784 470 764 480 L744 490 L724 510 Q714 530 709 550 L704 580 L684 620 L664 650 L644 670 Q634 680 634 690 L634 720 L644 750 Q654 770 674 780 L704 790 L744 790 Q774 785 794 770 Q809 755 814 735 L804 680 Z" fill="#4A5568"/>
+
+  <!-- Left Hand Highlight -->
+  <path d="M260 500 Q270 495 280 500 L290 515 Q295 530 295 545 L290 565 L280 580 Q270 585 265 580 Q260 570 260 555 L260 520 L260 500 Z" fill="#FFFFFF" opacity="0.3"/>
+
+  <!-- Right Hand Highlight -->
+  <path d="M764 500 Q754 495 744 500 L734 515 Q729 530 729 545 L734 565 L744 580 Q754 585 759 580 Q764 570 764 555 L764 520 L764 500 Z" fill="#FFFFFF" opacity="0.3"/>
+
+  <!-- Bottom Peach/Coral Petals -->
+  <ellipse cx="320" cy="550" rx="140" ry="90" fill="#E8B4A0" opacity="0.7" transform="rotate(-25 320 550)"/>
+  <ellipse cx="704" cy="550" rx="140" ry="90" fill="#E8B4A0" opacity="0.7" transform="rotate(25 704 550)"/>
+
+  <!-- Sage Green Side Petals -->
+  <ellipse cx="380" cy="480" rx="120" ry="100" fill="#B5C9B3" opacity="0.8" transform="rotate(-15 380 480)"/>
+  <ellipse cx="644" cy="480" rx="120" ry="100" fill="#B5C9B3" opacity="0.8" transform="rotate(15 644 480)"/>
+
+  <!-- Middle Olive/Brown Petals -->
+  <ellipse cx="420" cy="420" rx="110" ry="95" fill="#9B9B8E" opacity="0.75" transform="rotate(-8 420 420)"/>
+  <ellipse cx="604" cy="420" rx="110" ry="95" fill="#9B9B8E" opacity="0.75" transform="rotate(8 604 420)"/>
+
+  <!-- Darker Center Petals -->
+  <ellipse cx="460" cy="380" rx="100" ry="90" fill="#8B8B7E" opacity="0.8" transform="rotate(-5 460 380)"/>
+  <ellipse cx="564" cy="380" rx="100" ry="90" fill="#8B8B7E" opacity="0.8" transform="rotate(5 564 380)"/>
+
+  <!-- Purple/Lavender Top Petal -->
+  <ellipse cx="512" cy="320" rx="90" ry="110" fill="#B5A8BE" opacity="0.8"/>
+
+  <!-- Light Sage Petals -->
+  <ellipse cx="480" cy="350" rx="85" ry="85" fill="#A5B5A3" opacity="0.7" transform="rotate(-3 480 350)"/>
+  <ellipse cx="544" cy="350" rx="85" ry="85" fill="#A5B5A3" opacity="0.7" transform="rotate(3 544 350)"/>
+
+  <!-- Center Petal -->
+  <ellipse cx="512" cy="380" rx="70" ry="80" fill="#95A593" opacity="0.85"/>
+
+  <!-- White Center Teardrop/Flame -->
+  <path d="M512 500 Q490 470 490 440 Q490 410 512 380 Q534 410 534 440 Q534 470 512 500 Z" fill="#FFFFF0" opacity="0.95"/>
+
+  <!-- Center Detail Circle -->
+  <circle cx="512" cy="430" r="15" fill="#FFFFF0" opacity="0.8"/>
+</svg>
