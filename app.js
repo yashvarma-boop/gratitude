@@ -81,12 +81,19 @@ let currentSuggestions = {
 // Current date being viewed/edited
 let currentEntryDate = new Date();
 
+// Apply saved color scheme immediately (before DOMContentLoaded)
+const savedColorScheme = localStorage.getItem('colorScheme');
+if (savedColorScheme && savedColorScheme !== 'warm-peach') {
+    document.documentElement.classList.add(`theme-${savedColorScheme}`);
+}
+
 // Initialize App
 document.addEventListener('DOMContentLoaded', async () => {
     await db.init();
     currentEntryDate = new Date(); // Start on today
     loadUserSettings();
     updateWelcomeGreeting();
+    updateStreakDisplay(); // Initialize streak display
     showScreen('welcome');
     updateDateDisplay();
     initializeSuggestions();
@@ -143,6 +150,7 @@ function goHome() {
     currentEntryDate = new Date(); // Reset to today
     clearForm();
     updateWelcomeGreeting();
+    updateStreakDisplay(); // Update streak when going home
     showScreen('welcome');
 }
 
@@ -156,6 +164,7 @@ function startJournaling() {
 function loadUserSettings() {
     const userName = localStorage.getItem('userName') || '';
     const greetingStyle = localStorage.getItem('greetingStyle') || 'auto';
+    const colorScheme = localStorage.getItem('colorScheme') || 'warm-peach';
 
     if (document.getElementById('userNameInput')) {
         document.getElementById('userNameInput').value = userName;
@@ -163,18 +172,133 @@ function loadUserSettings() {
     if (document.getElementById('greetingStyle')) {
         document.getElementById('greetingStyle').value = greetingStyle;
     }
+    if (document.getElementById('colorScheme')) {
+        document.getElementById('colorScheme').value = colorScheme;
+    }
+
+    // Apply saved color scheme
+    applyColorScheme(colorScheme);
 }
 
 function saveSettings() {
     const userName = document.getElementById('userNameInput').value.trim();
     const greetingStyle = document.getElementById('greetingStyle').value;
+    const colorScheme = document.getElementById('colorScheme').value;
 
     localStorage.setItem('userName', userName);
     localStorage.setItem('greetingStyle', greetingStyle);
+    localStorage.setItem('colorScheme', colorScheme);
 
     updateWelcomeGreeting();
     showToast('Settings saved!');
     goHome();
+}
+
+function applyColorScheme(scheme) {
+    const root = document.documentElement;
+
+    // Remove all theme classes
+    root.classList.remove('theme-lavender-dream', 'theme-mint-fresh', 'theme-sunset-glow', 'theme-ocean-breeze', 'theme-rose-garden');
+
+    // Apply new theme class (except for default warm-peach)
+    if (scheme !== 'warm-peach') {
+        root.classList.add(`theme-${scheme}`);
+    }
+
+    localStorage.setItem('colorScheme', scheme);
+}
+
+// ========== STREAK TRACKING ==========
+
+async function calculateStreak() {
+    const sessions = await db.getAllSessions();
+
+    if (sessions.length === 0) {
+        return 0;
+    }
+
+    // Sort sessions by date descending
+    sessions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const mostRecentSession = new Date(sessions[0].date);
+    mostRecentSession.setHours(0, 0, 0, 0);
+
+    // Check if most recent entry is today or yesterday
+    const daysDiff = Math.floor((today - mostRecentSession) / (1000 * 60 * 60 * 24));
+
+    if (daysDiff > 1) {
+        // Streak broken
+        return 0;
+    }
+
+    // Calculate consecutive days
+    let streak = 1;
+    let currentDate = new Date(sessions[0].date);
+    currentDate.setHours(0, 0, 0, 0);
+
+    for (let i = 1; i < sessions.length; i++) {
+        const sessionDate = new Date(sessions[i].date);
+        sessionDate.setHours(0, 0, 0, 0);
+
+        const diff = Math.floor((currentDate - sessionDate) / (1000 * 60 * 60 * 24));
+
+        if (diff === 1) {
+            streak++;
+            currentDate = sessionDate;
+        } else if (diff > 1) {
+            break;
+        }
+    }
+
+    return streak;
+}
+
+function getStreakEncouragement(streak) {
+    if (streak === 0) {
+        return "Start your journey!";
+    } else if (streak === 1) {
+        return "Great start! Keep going! 🌟";
+    } else if (streak === 2) {
+        return "Two days strong! 💪";
+    } else if (streak === 3) {
+        return "Three in a row! You're building a habit! ✨";
+    } else if (streak < 7) {
+        return "Amazing progress! Keep it up! 🎯";
+    } else if (streak === 7) {
+        return "One week milestone! Incredible! 🎉";
+    } else if (streak < 14) {
+        return "You're on fire! Don't stop now! 🔥";
+    } else if (streak === 14) {
+        return "Two weeks! You're unstoppable! 🚀";
+    } else if (streak < 30) {
+        return "This is becoming second nature! 🌈";
+    } else if (streak === 30) {
+        return "30 days! You're a gratitude champion! 👑";
+    } else if (streak < 100) {
+        return "Legendary dedication! Keep shining! ⭐";
+    } else {
+        return "You're an inspiration to us all! 💎";
+    }
+}
+
+async function updateStreakDisplay() {
+    const streak = await calculateStreak();
+    const streakNumber = document.getElementById('streakNumber');
+    const streakLabel = document.getElementById('streakLabel');
+    const streakEncouragement = document.getElementById('streakEncouragement');
+
+    if (streakNumber) {
+        streakNumber.textContent = streak + '🔥';
+    }
+    if (streakLabel) {
+        streakLabel.textContent = streak === 1 ? 'day streak 🔥' : 'day streak 🔥';
+    }
+    if (streakEncouragement) {
+        streakEncouragement.textContent = getStreakEncouragement(streak);
+    }
 }
 
 function showSettings() {
@@ -225,6 +349,17 @@ function previousDay() {
 // Navigate to next day
 function nextDay() {
     currentEntryDate.setDate(currentEntryDate.getDate() + 1);
+    clearForm();
+    updateDateDisplay();
+    loadEntryForDate(currentEntryDate);
+    initializeSuggestions();
+}
+
+// Navigate to specific date with offset (for history navigation)
+function navigateToDate(date, offset) {
+    currentEntryDate = new Date(date);
+    currentEntryDate.setDate(currentEntryDate.getDate() + offset);
+    showScreen('entry');
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
@@ -301,14 +436,14 @@ function showScreen(screenName) {
             document.getElementById('entryScreen').classList.add('active');
             archiveBtn.style.display = 'none';
             homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'none';
+            settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
             archiveBtn.style.display = 'none';
             homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'none';
+            settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             loadHistory();
             break;
@@ -316,14 +451,14 @@ function showScreen(screenName) {
             document.getElementById('settingsScreen').classList.add('active');
             archiveBtn.style.display = 'none';
             homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'none';
+            settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             break;
         case 'detail':
             document.getElementById('detailScreen').classList.add('active');
             archiveBtn.style.display = 'none';
             homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'none';
+            settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'flex';
             shareBtn.onclick = shareCurrentEntry;
             break;
@@ -483,6 +618,9 @@ async function saveEntry() {
 
             showToast('✨ Entry saved successfully!');
 
+            // Update streak display
+            updateStreakDisplay();
+
             // Clear form
             setTimeout(() => {
                 clearForm();
@@ -584,6 +722,16 @@ function createHistoryItemCard(session) {
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const dateString = date.toLocaleDateString('en-US', dateOptions);
 
+    // Create header with date and navigation
+    const headerDiv = document.createElement('div');
+    headerDiv.className = 'history-item-header';
+    headerDiv.innerHTML = `
+        <button class="history-nav-btn" onclick="navigateToDate(new Date('${session.sessionDate}'), -1); event.stopPropagation();">◀</button>
+        <div class="history-item-date">${dateString}</div>
+        <button class="history-nav-btn" onclick="navigateToDate(new Date('${session.sessionDate}'), 1); event.stopPropagation();">▶</button>
+    `;
+    card.appendChild(headerDiv);
+
     let totalMediaCount = 0;
 
     // Create preview of first 3 items
@@ -618,6 +766,9 @@ function createHistoryItemCard(session) {
 async function showDetail(sessionId) {
     currentSessionId = sessionId;
     const session = await db.getSessionWithDetails(sessionId);
+
+    // Switch to detail screen
+    showScreen('detail');
 
     const detailContent = document.getElementById('detailContent');
     detailContent.innerHTML = '';
