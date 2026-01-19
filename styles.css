@@ -9,7 +9,7 @@
 }
 
 :root {
-    /* Soft, calming color palette */
+    /* Soft, calming color palette - Warm Peach (Default) */
     --bg-gradient-start: #F5E6D8;
     --bg-gradient-end: #E8D4C8;
     --bg-card: rgba(255, 255, 255, 0.85);
@@ -46,6 +46,47 @@
 
     /* Transitions */
     --transition: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Color Scheme Variants */
+.theme-lavender-dream {
+    --bg-gradient-start: #E8DFF5;
+    --bg-gradient-end: #D6C7E8;
+    --accent-purple: #B19CD9;
+    --accent-sage: #A8B5D1;
+    --accent-warm: #D4C5E0;
+}
+
+.theme-mint-fresh {
+    --bg-gradient-start: #D8F5E6;
+    --bg-gradient-end: #C8E8D4;
+    --accent-purple: #9BC5B8;
+    --accent-sage: #7EB09A;
+    --accent-warm: #A8D4C0;
+}
+
+.theme-sunset-glow {
+    --bg-gradient-start: #FFE8D8;
+    --bg-gradient-end: #FFD4C0;
+    --accent-purple: #E8A89B;
+    --accent-sage: #D4A88F;
+    --accent-warm: #FFCAB0;
+}
+
+.theme-ocean-breeze {
+    --bg-gradient-start: #D8E8F5;
+    --bg-gradient-end: #C8D8E8;
+    --accent-purple: #9BB5D9;
+    --accent-sage: #8FB5C5;
+    --accent-warm: #A8C8D4;
+}
+
+.theme-rose-garden {
+    --bg-gradient-start: #F5D8E8;
+    --bg-gradient-end: #E8C8D8;
+    --accent-purple: #D99BB5;
+    --accent-sage: #C58FA8;
+    --accent-warm: #E0A8C0;
 }
 
 /* ========================================
@@ -238,6 +279,7 @@ header {
    WELCOME SCREEN (Home)
    ======================================== */
 .welcome-container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -291,6 +333,44 @@ header {
     font-size: 0.875rem;
     color: var(--text-muted);
     margin-top: var(--spacing-lg);
+}
+
+/* Streak Badge */
+.streak-badge {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.85));
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-sm);
+    padding: 0.5rem 0.75rem;
+    box-shadow: var(--shadow-card);
+    text-align: center;
+    margin-right: var(--spacing-sm);
+    transition: all var(--transition);
+}
+
+.streak-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+}
+
+.streak-number {
+    font-size: 1.125rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent-purple), var(--accent-sage));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1;
+}
+
+.streak-label {
+    display: none;
+}
+
+.streak-encouragement {
+    display: none;
 }
 
 /* ========================================

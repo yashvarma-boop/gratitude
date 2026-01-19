@@ -37,6 +37,9 @@
                 <h1 id="headerTitle" style="display: none;">Today's Gratitude</h1>
             </div>
             <div class="header-right">
+                <div class="streak-badge" id="streakBadge">
+                    <div class="streak-number" id="streakNumber">0🔥</div>
+                </div>
                 <button id="settingsBtn" class="header-nav-btn" onclick="showSettings()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
@@ -241,6 +244,18 @@
                                 <option value="afternoon">Good afternoon</option>
                                 <option value="evening">Good evening</option>
                                 <option value="simple">Hello</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item">
+                            <label class="setting-label">Color Scheme</label>
+                            <select id="colorScheme" class="setting-input" onchange="applyColorScheme(this.value)">
+                                <option value="warm-peach">Warm Peach (Default)</option>
+                                <option value="lavender-dream">Lavender Dream</option>
+                                <option value="mint-fresh">Mint Fresh</option>
+                                <option value="sunset-glow">Sunset Glow</option>
+                                <option value="ocean-breeze">Ocean Breeze</option>
+                                <option value="rose-garden">Rose Garden</option>
                             </select>
                         </div>
 
