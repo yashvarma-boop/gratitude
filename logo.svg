@@ -1,0 +1,24 @@
+<svg width="120" height="120" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+  <!-- Elephant body -->
+  <ellipse cx="60" cy="75" rx="30" ry="25" fill="#D4A089" opacity="0.9"/>
+  
+  <!-- Elephant head -->
+  <circle cx="60" cy="50" r="22" fill="#D4A089" opacity="0.9"/>
+  
+  <!-- Ear -->
+  <ellipse cx="48" cy="50" rx="12" ry="18" fill="#9BAF95" opacity="0.8"/>
+  
+  <!-- Trunk -->
+  <path d="M60 60 Q65 70, 68 85" stroke="#D4A089" stroke-width="8" fill="none" stroke-linecap="round"/>
+  
+  <!-- Plant leaf in trunk -->
+  <ellipse cx="70" cy="82" rx="6" ry="10" fill="#9BAF95" transform="rotate(-20 70 82)"/>
+  <ellipse cx="74" cy="78" rx="6" ry="10" fill="#9BAF95" transform="rotate(20 74 78)"/>
+  
+  <!-- Eye -->
+  <circle cx="56" cy="46" r="2" fill="#3B3028"/>
+  
+  <!-- Feet -->
+  <rect x="48" y="95" width="8" height="12" rx="2" fill="#D4A089" opacity="0.9"/>
+  <rect x="64" y="95" width="8" height="12" rx="2" fill="#D4A089" opacity="0.9"/>
+</svg>
