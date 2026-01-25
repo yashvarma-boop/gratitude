@@ -1,6 +1,6 @@
 // Global State
 let currentScreen = 'entry';
-let currentFilter = 'week';
+let currentFilter = 'all';
 let currentSessionId = null;
 let currentMediaGallery = [];
 let currentMediaIndex = 0;
@@ -461,6 +461,20 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'flex';
             shareBtn.onclick = shareCurrentEntry;
+            break;
+        case 'addressBook':
+            document.getElementById('addressBookScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'flex';
+            shareBtn.style.display = 'none';
+            break;
+        case 'sendGratitude':
+            document.getElementById('sendGratitudeScreen').classList.add('active');
+            archiveBtn.style.display = 'none';
+            homeBtn.style.display = 'flex';
+            settingsBtn.style.display = 'flex';
+            shareBtn.style.display = 'none';
             break;
     }
 
@@ -1507,4 +1521,181 @@ function stopRecording() {
         document.getElementById('stopRecordBtn').style.display = 'none';
         document.getElementById('capturePhotoBtn').disabled = false;
     }
+}
+
+// Address Book Functions
+async function showAddressBook() {
+    showScreen('addressBook');
+    await loadContacts();
+}
+
+async function loadContacts() {
+    const contacts = await db.getAllContacts();
+    const contactsList = document.getElementById('contactsList');
+
+    if (contacts.length === 0) {
+        contactsList.innerHTML = '<p class="empty-state-text">No contacts yet. Add one above!</p>';
+        return;
+    }
+
+    contactsList.innerHTML = '';
+    contacts.forEach(contact => {
+        const contactItem = document.createElement('div');
+        contactItem.className = 'contact-item';
+        contactItem.innerHTML = `
+            <div class="contact-info">
+                <div class="contact-name">${escapeHtml(contact.name)}</div>
+                <div class="contact-phone">${escapeHtml(contact.phoneNumber)}</div>
+            </div>
+            <div class="contact-actions">
+                <button class="icon-btn" onclick="editContact(${contact.id})" title="Edit">✏️</button>
+                <button class="icon-btn" onclick="deleteContactConfirm(${contact.id})" title="Delete">🗑️</button>
+            </div>
+        `;
+        contactsList.appendChild(contactItem);
+    });
+}
+
+async function saveContact() {
+    const name = document.getElementById('contactName').value.trim();
+    const phone = document.getElementById('contactPhone').value.trim();
+
+    if (!name || !phone) {
+        showToast('Please enter both name and phone number');
+        return;
+    }
+
+    try {
+        await db.addContact(name, phone);
+        document.getElementById('contactName').value = '';
+        document.getElementById('contactPhone').value = '';
+        showToast('Contact added!');
+        await loadContacts();
+    } catch (error) {
+        console.error('Error saving contact:', error);
+        showToast('Error saving contact');
+    }
+}
+
+async function deleteContactConfirm(contactId) {
+    if (confirm('Are you sure you want to delete this contact?')) {
+        try {
+            await db.deleteContact(contactId);
+            showToast('Contact deleted');
+            await loadContacts();
+        } catch (error) {
+            console.error('Error deleting contact:', error);
+            showToast('Error deleting contact');
+        }
+    }
+}
+
+// Send Gratitude Functions
+async function showSendGratitude() {
+    showScreen('sendGratitude');
+    await loadRecipientsList();
+}
+
+async function loadRecipientsList() {
+    const contacts = await db.getAllContacts();
+    const select = document.getElementById('recipientSelect');
+
+    // Clear existing options except the first one
+    select.innerHTML = '<option value="">Choose from address book...</option>';
+
+    contacts.forEach(contact => {
+        const option = document.createElement('option');
+        option.value = contact.phoneNumber;
+        option.textContent = `${contact.name} (${contact.phoneNumber})`;
+        select.appendChild(option);
+    });
+}
+
+function handleRecipientChange() {
+    const select = document.getElementById('recipientSelect');
+    const phoneInput = document.getElementById('recipientPhone');
+
+    if (select.value) {
+        phoneInput.value = select.value;
+        phoneInput.disabled = true;
+    } else {
+        phoneInput.disabled = false;
+    }
+}
+
+// Update character count for message
+document.addEventListener('DOMContentLoaded', function() {
+    const messageTextarea = document.getElementById('gratitudeMessage');
+    if (messageTextarea) {
+        messageTextarea.addEventListener('input', function() {
+            const charCount = document.getElementById('messageCharCount');
+            if (charCount) {
+                charCount.textContent = this.value.length;
+            }
+        });
+    }
+});
+
+async function sendGratitudeMessage() {
+    const recipientPhone = document.getElementById('recipientPhone').value.trim();
+    const message = document.getElementById('gratitudeMessage').value.trim();
+
+    if (!recipientPhone) {
+        showToast('Please select a contact or enter a phone number');
+        return;
+    }
+
+    if (!message) {
+        showToast('Please write a message');
+        return;
+    }
+
+    // Show sending status
+    showToast('Sending message...');
+
+    try {
+        // Send SMS via API
+        const response = await fetch('/api/send-sms', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to: recipientPhone,
+                message: message
+            })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to send message');
+        }
+
+        const result = await response.json();
+
+        // Clear the form
+        document.getElementById('recipientSelect').value = '';
+        document.getElementById('recipientPhone').value = '';
+        document.getElementById('recipientPhone').disabled = false;
+        document.getElementById('gratitudeMessage').value = '';
+        document.getElementById('messageCharCount').textContent = '0';
+
+        showToast('Message sent successfully! ✓');
+
+        // Return to home after 2 seconds
+        setTimeout(() => {
+            goHome();
+        }, 2000);
+
+    } catch (error) {
+        console.error('Error sending message:', error);
+        showToast(`Error: ${error.message}`);
+    }
+}
+
+// Helper function to escape HTML
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }

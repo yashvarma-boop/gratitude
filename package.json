@@ -1,0 +1,21 @@
+{
+  "name": "grateful-app",
+  "version": "1.0.0",
+  "description": "Gratitude journal app with SMS sharing",
+  "main": "index.html",
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "twilio": "^4.20.0"
+  },
+  "devDependencies": {},
+  "keywords": [
+    "gratitude",
+    "journal",
+    "wellness"
+  ],
+  "author": "Yash Varma",
+  "license": "MIT"
+}

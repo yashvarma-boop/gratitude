@@ -833,6 +833,43 @@ header {
     border-left-color: var(--accent-sage);
 }
 
+.history-item-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+    gap: var(--spacing-sm);
+}
+
+.history-item-date {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 1;
+    text-align: center;
+}
+
+.history-nav-btn {
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    font-size: 1rem;
+    color: var(--text-secondary);
+}
+
+.history-nav-btn:hover {
+    background: white;
+    color: var(--text-primary);
+    transform: scale(1.05);
+}
+
 .history-item-preview {
     font-size: 1rem;
     color: var(--text-primary);
@@ -1566,4 +1603,93 @@ header {
 
 #footer p {
     margin: 0;
+}
+
+/* ========================================
+   ADDRESS BOOK & SEND GRATITUDE
+   ======================================== */
+.contact-form {
+    margin-bottom: var(--spacing-xl);
+    padding-bottom: var(--spacing-xl);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.contact-form h3,
+.contacts-list h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.contacts-list {
+    margin-top: var(--spacing-lg);
+}
+
+#contactsList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.contact-item {
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: var(--radius-sm);
+    padding: var(--spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all var(--transition);
+}
+
+.contact-item:hover {
+    box-shadow: var(--shadow-card);
+    transform: translateY(-2px);
+}
+
+.contact-info {
+    flex: 1;
+}
+
+.contact-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+    font-size: 1rem;
+}
+
+.contact-phone {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.contact-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.empty-state-text {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--spacing-xl);
+    font-style: italic;
+}
+
+.char-count {
+    text-align: right;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+#gratitudeMessage {
+    min-height: 120px;
+    resize: vertical;
+    font-family: inherit;
+}
+
+#recipientPhone:disabled {
+    background: rgba(0, 0, 0, 0.05);
+    cursor: not-allowed;
 }

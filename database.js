@@ -2,7 +2,7 @@
 class GratitudeDB {
     constructor() {
         this.dbName = 'GratitudeDB';
-        this.version = 1;
+        this.version = 2;
         this.db = null;
     }
 
@@ -38,6 +38,13 @@ class GratitudeDB {
                 if (!db.objectStoreNames.contains('media')) {
                     const mediaStore = db.createObjectStore('media', { keyPath: 'id', autoIncrement: true });
                     mediaStore.createIndex('itemId', 'itemId', { unique: false });
+                }
+
+                // Create contacts store
+                if (!db.objectStoreNames.contains('contacts')) {
+                    const contactStore = db.createObjectStore('contacts', { keyPath: 'id', autoIncrement: true });
+                    contactStore.createIndex('name', 'name', { unique: false });
+                    contactStore.createIndex('phoneNumber', 'phoneNumber', { unique: false });
                 }
             };
         });
@@ -397,6 +404,86 @@ class GratitudeDB {
                 default:
                     return true;
             }
+        });
+    }
+
+    // Add a new contact
+    async addContact(name, phoneNumber) {
+        const transaction = this.db.transaction(['contacts'], 'readwrite');
+        const contactStore = transaction.objectStore('contacts');
+
+        const contact = {
+            name,
+            phoneNumber,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+        };
+
+        return new Promise((resolve, reject) => {
+            const request = contactStore.add(contact);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Get all contacts
+    async getAllContacts() {
+        const transaction = this.db.transaction(['contacts'], 'readonly');
+        const contactStore = transaction.objectStore('contacts');
+
+        return new Promise((resolve, reject) => {
+            const request = contactStore.getAll();
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Get contact by ID
+    async getContact(contactId) {
+        const transaction = this.db.transaction(['contacts'], 'readonly');
+        const contactStore = transaction.objectStore('contacts');
+
+        return new Promise((resolve, reject) => {
+            const request = contactStore.get(contactId);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+
+    // Update contact
+    async updateContact(contactId, name, phoneNumber) {
+        const transaction = this.db.transaction(['contacts'], 'readwrite');
+        const contactStore = transaction.objectStore('contacts');
+
+        return new Promise((resolve, reject) => {
+            const getRequest = contactStore.get(contactId);
+            getRequest.onsuccess = () => {
+                const contact = getRequest.result;
+                if (contact) {
+                    contact.name = name;
+                    contact.phoneNumber = phoneNumber;
+                    contact.updatedAt = Date.now();
+
+                    const updateRequest = contactStore.put(contact);
+                    updateRequest.onsuccess = () => resolve(updateRequest.result);
+                    updateRequest.onerror = () => reject(updateRequest.error);
+                } else {
+                    reject(new Error('Contact not found'));
+                }
+            };
+            getRequest.onerror = () => reject(getRequest.error);
+        });
+    }
+
+    // Delete contact
+    async deleteContact(contactId) {
+        const transaction = this.db.transaction(['contacts'], 'readwrite');
+        const contactStore = transaction.objectStore('contacts');
+
+        return new Promise((resolve, reject) => {
+            const request = contactStore.delete(contactId);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
         });
     }
 }

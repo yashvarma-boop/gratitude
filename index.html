@@ -152,6 +152,7 @@
                 <div class="action-buttons">
                     <button id="saveBtn" class="primary-btn" onclick="saveEntry()">Save Entry 💾</button>
                     <button id="viewHistoryBtn" class="secondary-btn" onclick="showHistory()">View Past Entries</button>
+                    <button id="sendGratitudeBtn" class="secondary-btn" onclick="showSendGratitude()">Send Gratitude 💌</button>
                 </div>
             </div>
 
@@ -159,9 +160,10 @@
             <div id="historyScreen" class="screen">
                 <div class="history-header">
                     <div class="filter-buttons">
-                        <button class="filter-btn active" onclick="filterEntries('week')">Week</button>
+                        <button class="filter-btn" onclick="filterEntries('week')">Week</button>
                         <button class="filter-btn" onclick="filterEntries('month')">Month</button>
                         <button class="filter-btn" onclick="filterEntries('year')">Year</button>
+                        <button class="filter-btn active" onclick="filterEntries('all')">All</button>
                     </div>
                     <div class="view-toggle">
                         <button class="view-toggle-btn active" onclick="switchView('list')">
@@ -260,6 +262,66 @@
                         </div>
 
                         <button class="primary-btn" onclick="saveSettings()">Save Settings</button>
+                        <button class="secondary-btn" onclick="showAddressBook()">Manage Address Book</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Address Book Screen -->
+            <div id="addressBookScreen" class="screen">
+                <div class="settings-container">
+                    <div class="settings-card">
+                        <h2 class="settings-title">Address Book</h2>
+
+                        <div class="contact-form">
+                            <h3>Add New Contact</h3>
+                            <div class="setting-item">
+                                <label class="setting-label">Name</label>
+                                <input type="text" id="contactName" class="setting-input" placeholder="Enter name" maxlength="50">
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">Phone Number</label>
+                                <input type="tel" id="contactPhone" class="setting-input" placeholder="Enter phone number" maxlength="20">
+                            </div>
+                            <button class="primary-btn" onclick="saveContact()">Add Contact</button>
+                        </div>
+
+                        <div class="contacts-list">
+                            <h3>My Contacts</h3>
+                            <div id="contactsList"></div>
+                        </div>
+
+                        <button class="secondary-btn" onclick="showSettings()">Back to Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Send Gratitude Screen -->
+            <div id="sendGratitudeScreen" class="screen">
+                <div class="settings-container">
+                    <div class="settings-card">
+                        <h2 class="settings-title">Send Gratitude</h2>
+
+                        <div class="setting-item">
+                            <label class="setting-label">Select Contact</label>
+                            <select id="recipientSelect" class="setting-input" onchange="handleRecipientChange()">
+                                <option value="">Choose from address book...</option>
+                            </select>
+                        </div>
+
+                        <div class="setting-item">
+                            <label class="setting-label">Or Enter Phone Number</label>
+                            <input type="tel" id="recipientPhone" class="setting-input" placeholder="Enter phone number" maxlength="20">
+                        </div>
+
+                        <div class="setting-item">
+                            <label class="setting-label">Message</label>
+                            <textarea id="gratitudeMessage" class="setting-input" placeholder="Write your gratitude message..." maxlength="500" rows="6"></textarea>
+                            <div class="char-count"><span id="messageCharCount">0</span>/500</div>
+                        </div>
+
+                        <button class="primary-btn" onclick="sendGratitudeMessage()">Send Message 💌</button>
+                        <button class="secondary-btn" onclick="goHome()">Cancel</button>
                     </div>
                 </div>
             </div>
