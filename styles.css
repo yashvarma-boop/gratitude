@@ -1882,3 +1882,136 @@ header {
     align-items: center;
     gap: 4px;
 }
+
+/* Monthly Birthdays Reminder */
+.monthly-birthdays-reminder {
+    background: linear-gradient(135deg, #E8F4FD 0%, #F0F7FF 100%);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(100, 149, 237, 0.3);
+    max-width: 400px;
+    width: 100%;
+    animation: slideIn 0.3s ease-out;
+}
+
+.monthly-birthdays-reminder .birthday-icon {
+    font-size: 1.5rem;
+}
+
+/* Contact Photo Styles */
+.contact-photo-section {
+    margin-bottom: var(--spacing-md);
+}
+
+.contact-photo-upload {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.contact-photo-preview {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--bg-card);
+    border: 2px dashed var(--accent-warm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.contact-photo-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.contact-photo-preview .photo-placeholder {
+    font-size: 2rem;
+    opacity: 0.5;
+}
+
+.photo-upload-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.photo-upload-buttons .secondary-btn.small {
+    padding: 6px 12px;
+    font-size: 0.8125rem;
+}
+
+/* Contact List Photo */
+.contact-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.contact-list-photo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.contact-list-photo-placeholder {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-warm) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+/* CSV Import/Export Section */
+.csv-section {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.csv-section h3 {
+    margin-bottom: var(--spacing-md);
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.csv-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+}
+
+.csv-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Contact Form Buttons */
+.contact-form-buttons {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+}
+
+.contact-form-buttons .primary-btn,
+.contact-form-buttons .secondary-btn {
+    flex: 1;
+}

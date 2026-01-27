@@ -94,7 +94,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUserSettings();
     updateWelcomeGreeting();
     updateStreakDisplay(); // Initialize streak display
-    checkUpcomingBirthdays(); // Check for birthdays
+    checkUpcomingBirthdays(); // Check for upcoming birthdays
+    checkMonthlyBirthdays(); // Check for monthly birthdays
     showScreen('welcome');
     updateDateDisplay();
     initializeSuggestions();
@@ -185,6 +186,61 @@ function sendBirthdayMessage(name, phoneNumber) {
     showToast(`Sending birthday wishes to ${name}!`);
 }
 
+// Check for monthly birthdays
+async function checkMonthlyBirthdays() {
+    try {
+        const currentMonth = new Date().getMonth() + 1; // 1-12
+        const monthlyBirthdays = await db.getBirthdaysForMonth(currentMonth);
+
+        const reminderElement = document.getElementById('monthlyBirthdaysReminder');
+        const listElement = document.getElementById('monthlyBirthdaysList');
+        const titleElement = document.getElementById('monthlyBirthdaysTitle');
+
+        if (monthlyBirthdays.length === 0) {
+            reminderElement.style.display = 'none';
+            return;
+        }
+
+        // Get month name
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'];
+        titleElement.textContent = `Birthdays in ${monthNames[currentMonth - 1]}`;
+
+        // Build birthday list HTML
+        listElement.innerHTML = '';
+
+        monthlyBirthdays.forEach(contact => {
+            const item = document.createElement('div');
+            item.className = 'birthday-item';
+
+            const [month, day] = contact.birthday.split('-');
+            const dayNum = parseInt(day);
+            const suffix = getDaySuffix(dayNum);
+
+            item.innerHTML = `
+                <span class="birthday-name">${escapeHtml(contact.name)}</span>
+                <span class="birthday-date">${dayNum}${suffix}</span>
+            `;
+
+            listElement.appendChild(item);
+        });
+
+        reminderElement.style.display = 'flex';
+    } catch (error) {
+        console.error('Error checking monthly birthdays:', error);
+    }
+}
+
+function getDaySuffix(day) {
+    if (day >= 11 && day <= 13) return 'th';
+    switch (day % 10) {
+        case 1: return 'st';
+        case 2: return 'nd';
+        case 3: return 'rd';
+        default: return 'th';
+    }
+}
+
 // ========== GRATITUDE SUGGESTIONS ==========
 
 // Get a random suggestion that hasn't been used for this item
@@ -237,7 +293,8 @@ function goHome() {
     clearForm();
     updateWelcomeGreeting();
     updateStreakDisplay(); // Update streak when going home
-    checkUpcomingBirthdays(); // Check for birthdays
+    checkUpcomingBirthdays(); // Check for upcoming birthdays
+    checkMonthlyBirthdays(); // Check for monthly birthdays
     showScreen('welcome');
 }
 
@@ -509,6 +566,7 @@ function showScreen(screenName) {
     const homeBtn = document.getElementById('homeBtn');
     const settingsBtn = document.getElementById('settingsBtn');
     const shareBtn = document.getElementById('shareBtn');
+    const sendGratitudeBtn = document.getElementById('sendGratitudeBtn');
 
     // Show/hide header elements based on screen
     switch (screenName) {
@@ -518,6 +576,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'none';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'flex';
             break;
         case 'entry':
             document.getElementById('entryScreen').classList.add('active');
@@ -525,6 +584,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'flex';
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
@@ -532,6 +592,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'flex';
             loadHistory();
             break;
         case 'settings':
@@ -540,6 +601,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'none';
             break;
         case 'detail':
             document.getElementById('detailScreen').classList.add('active');
@@ -548,6 +610,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'flex';
             shareBtn.onclick = shareCurrentEntry;
+            sendGratitudeBtn.style.display = 'flex';
             break;
         case 'addressBook':
             document.getElementById('addressBookScreen').classList.add('active');
@@ -555,6 +618,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'none';
             break;
         case 'sendGratitude':
             document.getElementById('sendGratitudeScreen').classList.add('active');
@@ -562,6 +626,7 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'none';
             break;
     }
 
@@ -1687,8 +1752,11 @@ function stopRecording() {
 }
 
 // Address Book Functions
+let currentContactPhoto = null;
+
 async function showAddressBook() {
     showScreen('addressBook');
+    cancelEditContact(); // Reset form state
     await loadContacts();
 }
 
@@ -1714,7 +1782,13 @@ async function loadContacts() {
             birthdayDisplay = `🎂 ${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
         }
 
+        // Contact photo or placeholder
+        const photoHTML = contact.photo
+            ? `<img src="${contact.photo}" class="contact-list-photo" alt="${escapeHtml(contact.name)}">`
+            : `<div class="contact-list-photo-placeholder">${contact.name.charAt(0).toUpperCase()}</div>`;
+
         contactItem.innerHTML = `
+            ${photoHTML}
             <div class="contact-info">
                 <div class="contact-name">${escapeHtml(contact.name)}</div>
                 <div class="contact-phone">${escapeHtml(contact.phoneNumber)}</div>
@@ -1729,7 +1803,108 @@ async function loadContacts() {
     });
 }
 
+// Contact photo functions
+function selectContactPhoto() {
+    document.getElementById('contactPhotoInput').click();
+}
+
+function handleContactPhotoSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('Photo too large. Maximum 2MB');
+        return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        currentContactPhoto = e.target.result;
+        updateContactPhotoPreview(currentContactPhoto);
+    };
+    reader.readAsDataURL(file);
+}
+
+function updateContactPhotoPreview(photoUrl) {
+    const preview = document.getElementById('contactPhotoPreview');
+    const clearBtn = document.getElementById('clearPhotoBtn');
+
+    if (photoUrl) {
+        preview.innerHTML = `<img src="${photoUrl}" alt="Contact photo">`;
+        clearBtn.style.display = 'inline-block';
+    } else {
+        preview.innerHTML = '<span class="photo-placeholder">📷</span>';
+        clearBtn.style.display = 'none';
+    }
+}
+
+function clearContactPhoto() {
+    currentContactPhoto = null;
+    document.getElementById('contactPhotoInput').value = '';
+    updateContactPhotoPreview(null);
+}
+
+// Edit contact
+async function editContact(contactId) {
+    try {
+        const contact = await db.getContact(contactId);
+        if (!contact) {
+            showToast('Contact not found');
+            return;
+        }
+
+        // Populate form
+        document.getElementById('editingContactId').value = contactId;
+        document.getElementById('contactName').value = contact.name;
+        document.getElementById('contactPhone').value = contact.phoneNumber;
+
+        // Set birthday if exists (need to convert MM-DD to date input format)
+        if (contact.birthday) {
+            const [month, day] = contact.birthday.split('-');
+            // Use current year for date input
+            const year = new Date().getFullYear();
+            document.getElementById('contactBirthday').value = `${year}-${month}-${day}`;
+        } else {
+            document.getElementById('contactBirthday').value = '';
+        }
+
+        // Set photo
+        currentContactPhoto = contact.photo || null;
+        updateContactPhotoPreview(currentContactPhoto);
+
+        // Update form UI for edit mode
+        document.getElementById('contactFormTitle').textContent = 'Edit Contact';
+        document.getElementById('saveContactBtn').textContent = 'Update Contact';
+        document.getElementById('cancelEditBtn').style.display = 'inline-block';
+
+        // Scroll to form
+        document.querySelector('.contact-form').scrollIntoView({ behavior: 'smooth' });
+
+    } catch (error) {
+        console.error('Error loading contact for edit:', error);
+        showToast('Error loading contact');
+    }
+}
+
+function cancelEditContact() {
+    // Reset form
+    document.getElementById('editingContactId').value = '';
+    document.getElementById('contactName').value = '';
+    document.getElementById('contactPhone').value = '';
+    document.getElementById('contactBirthday').value = '';
+    currentContactPhoto = null;
+    updateContactPhotoPreview(null);
+    document.getElementById('contactPhotoInput').value = '';
+
+    // Reset UI
+    document.getElementById('contactFormTitle').textContent = 'Add New Contact';
+    document.getElementById('saveContactBtn').textContent = 'Add Contact';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+}
+
 async function saveContact() {
+    const editingId = document.getElementById('editingContactId').value;
     const name = document.getElementById('contactName').value.trim();
     const phone = document.getElementById('contactPhone').value.trim();
     const birthdayInput = document.getElementById('contactBirthday').value;
@@ -1749,11 +1924,17 @@ async function saveContact() {
     }
 
     try {
-        await db.addContact(name, phone, birthday);
-        document.getElementById('contactName').value = '';
-        document.getElementById('contactPhone').value = '';
-        document.getElementById('contactBirthday').value = '';
-        showToast('Contact added!');
+        if (editingId) {
+            // Update existing contact
+            await db.updateContact(parseInt(editingId), name, phone, birthday, currentContactPhoto);
+            showToast('Contact updated!');
+        } else {
+            // Add new contact
+            await db.addContact(name, phone, birthday, currentContactPhoto);
+            showToast('Contact added!');
+        }
+
+        cancelEditContact(); // Reset form
         await loadContacts();
     } catch (error) {
         console.error('Error saving contact:', error);
@@ -1771,6 +1952,218 @@ async function deleteContactConfirm(contactId) {
             console.error('Error deleting contact:', error);
             showToast('Error deleting contact');
         }
+    }
+}
+
+// ========== CSV IMPORT/EXPORT ==========
+
+function importContactsCSV() {
+    document.getElementById('csvFileInput').click();
+}
+
+async function handleCSVImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+        const text = await file.text();
+        const contacts = parseCSV(text);
+
+        if (contacts.length === 0) {
+            showToast('No valid contacts found in CSV');
+            return;
+        }
+
+        let imported = 0;
+        let skipped = 0;
+
+        for (const contact of contacts) {
+            if (contact.name && contact.phone) {
+                try {
+                    await db.addContact(contact.name, contact.phone, contact.birthday, null);
+                    imported++;
+                } catch (e) {
+                    skipped++;
+                }
+            } else {
+                skipped++;
+            }
+        }
+
+        showToast(`Imported ${imported} contacts${skipped > 0 ? `, ${skipped} skipped` : ''}`);
+        await loadContacts();
+
+        // Reset file input
+        event.target.value = '';
+
+    } catch (error) {
+        console.error('Error importing CSV:', error);
+        showToast('Error importing CSV file');
+    }
+}
+
+function parseCSV(csvText) {
+    const lines = csvText.split(/\r?\n/).filter(line => line.trim());
+    if (lines.length < 2) return [];
+
+    // Parse header row
+    const headers = parseCSVLine(lines[0]).map(h => h.toLowerCase().trim());
+
+    // Find column indices (support Google and Microsoft formats)
+    const nameIndex = headers.findIndex(h =>
+        h === 'name' || h === 'first name' || h === 'given name' || h === 'full name'
+    );
+    const lastNameIndex = headers.findIndex(h =>
+        h === 'last name' || h === 'family name' || h === 'surname'
+    );
+    const phoneIndex = headers.findIndex(h =>
+        h.includes('phone') || h.includes('mobile') || h.includes('telephone') || h === 'phone 1 - value'
+    );
+    const birthdayIndex = headers.findIndex(h =>
+        h === 'birthday' || h === 'birth date' || h === 'date of birth' || h === 'dob'
+    );
+
+    if (nameIndex === -1 || phoneIndex === -1) {
+        showToast('CSV must have Name and Phone columns');
+        return [];
+    }
+
+    const contacts = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = parseCSVLine(lines[i]);
+        if (values.length === 0) continue;
+
+        let name = values[nameIndex] || '';
+        // Combine first and last name if separate columns
+        if (lastNameIndex !== -1 && values[lastNameIndex]) {
+            name = `${name} ${values[lastNameIndex]}`.trim();
+        }
+
+        const phone = values[phoneIndex] || '';
+        let birthday = null;
+
+        if (birthdayIndex !== -1 && values[birthdayIndex]) {
+            birthday = parseBirthdayFromCSV(values[birthdayIndex]);
+        }
+
+        if (name && phone) {
+            contacts.push({ name, phone, birthday });
+        }
+    }
+
+    return contacts;
+}
+
+function parseCSVLine(line) {
+    const result = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i++;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            result.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    result.push(current.trim());
+
+    return result;
+}
+
+function parseBirthdayFromCSV(dateStr) {
+    if (!dateStr) return null;
+
+    // Try various date formats
+    const formats = [
+        /^(\d{4})-(\d{2})-(\d{2})$/,  // YYYY-MM-DD
+        /^(\d{2})\/(\d{2})\/(\d{4})$/,  // MM/DD/YYYY or DD/MM/YYYY
+        /^(\d{2})-(\d{2})-(\d{4})$/,  // MM-DD-YYYY or DD-MM-YYYY
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,  // M/D/YYYY
+    ];
+
+    for (const format of formats) {
+        const match = dateStr.match(format);
+        if (match) {
+            let month, day;
+
+            if (format === formats[0]) {
+                // YYYY-MM-DD
+                month = match[2];
+                day = match[3];
+            } else {
+                // Assume MM/DD/YYYY format (US style)
+                month = match[1].padStart(2, '0');
+                day = match[2].padStart(2, '0');
+            }
+
+            // Validate
+            const m = parseInt(month);
+            const d = parseInt(day);
+            if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+                return `${month}-${day}`;
+            }
+        }
+    }
+
+    return null;
+}
+
+async function exportContactsCSV() {
+    try {
+        const contacts = await db.getAllContacts();
+
+        if (contacts.length === 0) {
+            showToast('No contacts to export');
+            return;
+        }
+
+        // Create CSV content (Google Contacts compatible format)
+        const headers = ['Name', 'Phone 1 - Value', 'Birthday'];
+        const rows = [headers.join(',')];
+
+        contacts.forEach(contact => {
+            const birthdayFormatted = contact.birthday
+                ? `${new Date().getFullYear()}-${contact.birthday}`  // Convert MM-DD to YYYY-MM-DD
+                : '';
+
+            const row = [
+                `"${(contact.name || '').replace(/"/g, '""')}"`,
+                `"${(contact.phoneNumber || '').replace(/"/g, '""')}"`,
+                birthdayFormatted
+            ];
+            rows.push(row.join(','));
+        });
+
+        const csvContent = rows.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+
+        // Download file
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `grateful_contacts_${formatDate(new Date())}.csv`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+
+        showToast(`Exported ${contacts.length} contacts`);
+
+    } catch (error) {
+        console.error('Error exporting contacts:', error);
+        showToast('Error exporting contacts');
     }
 }
 

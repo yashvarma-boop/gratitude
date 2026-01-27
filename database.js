@@ -417,7 +417,7 @@ class GratitudeDB {
     }
 
     // Add a new contact
-    async addContact(name, phoneNumber, birthday = null) {
+    async addContact(name, phoneNumber, birthday = null, photo = null) {
         const transaction = this.db.transaction(['contacts'], 'readwrite');
         const contactStore = transaction.objectStore('contacts');
 
@@ -425,6 +425,7 @@ class GratitudeDB {
             name,
             phoneNumber,
             birthday,
+            photo,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -461,7 +462,7 @@ class GratitudeDB {
     }
 
     // Update contact
-    async updateContact(contactId, name, phoneNumber, birthday = null) {
+    async updateContact(contactId, name, phoneNumber, birthday = null, photo = null) {
         const transaction = this.db.transaction(['contacts'], 'readwrite');
         const contactStore = transaction.objectStore('contacts');
 
@@ -473,6 +474,7 @@ class GratitudeDB {
                     contact.name = name;
                     contact.phoneNumber = phoneNumber;
                     contact.birthday = birthday;
+                    contact.photo = photo;
                     contact.updatedAt = Date.now();
 
                     const updateRequest = contactStore.put(contact);
@@ -526,6 +528,27 @@ class GratitudeDB {
         upcomingBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
 
         return upcomingBirthdays;
+    }
+
+    // Get birthdays for a specific month
+    async getBirthdaysForMonth(month) {
+        const contacts = await this.getAllContacts();
+        const monthStr = String(month).padStart(2, '0');
+
+        const birthdaysThisMonth = contacts.filter(contact => {
+            if (!contact.birthday) return false;
+            const [bMonth] = contact.birthday.split('-');
+            return bMonth === monthStr;
+        });
+
+        // Sort by day of month
+        birthdaysThisMonth.sort((a, b) => {
+            const dayA = parseInt(a.birthday.split('-')[1]);
+            const dayB = parseInt(b.birthday.split('-')[1]);
+            return dayA - dayB;
+        });
+
+        return birthdaysThisMonth;
     }
 
     // Delete contact

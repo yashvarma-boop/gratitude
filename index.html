@@ -40,6 +40,13 @@
                 <div class="streak-badge" id="streakBadge">
                     <div class="streak-number" id="streakNumber">0🔥</div>
                 </div>
+                <button id="sendGratitudeBtn" class="header-nav-btn" onclick="showSendGratitude()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 2L11 13"/>
+                        <path d="M22 2L15 22L11 13L2 9L22 2Z"/>
+                    </svg>
+                    <span>Send</span>
+                </button>
                 <button id="settingsBtn" class="header-nav-btn" onclick="showSettings()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
@@ -62,12 +69,21 @@
             <!-- Welcome/Home Screen -->
             <div id="welcomeScreen" class="screen active">
                 <div class="welcome-container">
-                    <!-- Birthday Reminder Banner -->
+                    <!-- Birthday Reminder Banner (Upcoming) -->
                     <div id="birthdayReminder" class="birthday-reminder" style="display: none;">
                         <div class="birthday-icon">🎂</div>
                         <div class="birthday-content">
                             <div class="birthday-title" id="birthdayTitle">Upcoming Birthdays</div>
                             <div class="birthday-list" id="birthdayList"></div>
+                        </div>
+                    </div>
+
+                    <!-- Monthly Birthdays Banner -->
+                    <div id="monthlyBirthdaysReminder" class="monthly-birthdays-reminder" style="display: none;">
+                        <div class="birthday-icon">📅</div>
+                        <div class="birthday-content">
+                            <div class="birthday-title" id="monthlyBirthdaysTitle">Birthdays This Month</div>
+                            <div class="birthday-list" id="monthlyBirthdaysList"></div>
                         </div>
                     </div>
                     <div class="welcome-circle" onclick="startJournaling()">
@@ -282,7 +298,24 @@
                         <h2 class="settings-title">Address Book</h2>
 
                         <div class="contact-form">
-                            <h3>Add New Contact</h3>
+                            <h3 id="contactFormTitle">Add New Contact</h3>
+                            <input type="hidden" id="editingContactId" value="">
+
+                            <!-- Contact Photo -->
+                            <div class="setting-item contact-photo-section">
+                                <label class="setting-label">Photo (optional)</label>
+                                <div class="contact-photo-upload">
+                                    <div class="contact-photo-preview" id="contactPhotoPreview">
+                                        <span class="photo-placeholder">📷</span>
+                                    </div>
+                                    <div class="photo-upload-buttons">
+                                        <button type="button" class="secondary-btn small" onclick="selectContactPhoto()">Choose Photo</button>
+                                        <button type="button" class="secondary-btn small" onclick="clearContactPhoto()" id="clearPhotoBtn" style="display: none;">Remove</button>
+                                    </div>
+                                    <input type="file" id="contactPhotoInput" accept="image/*" style="display: none;" onchange="handleContactPhotoSelect(event)">
+                                </div>
+                            </div>
+
                             <div class="setting-item">
                                 <label class="setting-label">Name</label>
                                 <input type="text" id="contactName" class="setting-input" placeholder="Enter name" maxlength="50">
@@ -295,7 +328,25 @@
                                 <label class="setting-label">Birthday (optional)</label>
                                 <input type="date" id="contactBirthday" class="setting-input">
                             </div>
-                            <button class="primary-btn" onclick="saveContact()">Add Contact</button>
+                            <div class="contact-form-buttons">
+                                <button class="primary-btn" onclick="saveContact()" id="saveContactBtn">Add Contact</button>
+                                <button class="secondary-btn" onclick="cancelEditContact()" id="cancelEditBtn" style="display: none;">Cancel</button>
+                            </div>
+                        </div>
+
+                        <!-- CSV Import/Export Section -->
+                        <div class="csv-section">
+                            <h3>Import / Export Contacts</h3>
+                            <div class="csv-buttons">
+                                <button class="secondary-btn" onclick="importContactsCSV()">
+                                    📥 Import CSV
+                                </button>
+                                <button class="secondary-btn" onclick="exportContactsCSV()">
+                                    📤 Export CSV
+                                </button>
+                            </div>
+                            <p class="csv-hint">Compatible with Google Contacts and Microsoft Outlook</p>
+                            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
                         </div>
 
                         <div class="contacts-list">
