@@ -1782,3 +1782,103 @@ header {
     color: var(--text-muted);
     margin-top: 2px;
 }
+
+/* Calendar Birthday Styles */
+.calendar-day.has-birthday {
+    background: linear-gradient(135deg, rgba(255, 182, 193, 0.3) 0%, rgba(255, 218, 233, 0.3) 100%);
+    border: 1px solid rgba(255, 105, 180, 0.3);
+}
+
+.calendar-birthday-indicator {
+    font-size: 0.75rem;
+    line-height: 1;
+    margin-top: 2px;
+}
+
+.calendar-birthday-banner {
+    background: linear-gradient(135deg, #FFE4EC 0%, #FFF0F5 100%);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+    border: 1px solid rgba(255, 182, 193, 0.3);
+}
+
+.calendar-birthday-banner .birthday-icon {
+    font-size: 1.5rem;
+}
+
+.calendar-birthday-banner .birthday-content {
+    flex: 1;
+}
+
+.calendar-birthday-banner .birthday-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 0.9375rem;
+}
+
+.birthday-person {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid rgba(255, 182, 193, 0.2);
+}
+
+.birthday-person:last-child {
+    border-bottom: none;
+}
+
+.birthday-person span {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+}
+
+.send-birthday-btn {
+    background: linear-gradient(135deg, #FF6B95 0%, #FF8FAB 100%);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 16px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    white-space: nowrap;
+}
+
+.send-birthday-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(255, 107, 149, 0.4);
+}
+
+.send-birthday-btn-small {
+    background: linear-gradient(135deg, #FF6B95 0%, #FF8FAB 100%);
+    color: white;
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+}
+
+.send-birthday-btn-small:hover {
+    transform: scale(1.1);
+    box-shadow: 0 2px 8px rgba(255, 107, 149, 0.4);
+}
+
+.birthday-date-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}

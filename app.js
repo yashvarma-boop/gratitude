@@ -131,9 +131,17 @@ async function checkUpcomingBirthdays() {
                 dateText = birthday.birthdayDate.toLocaleDateString('en-AU', options);
             }
 
+            // Show send message button for today's birthdays
+            const sendBtn = birthday.daysUntil === 0
+                ? `<button class="send-birthday-btn-small" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(birthday.name)}', '${escapeHtml(birthday.phoneNumber)}')">💬</button>`
+                : '';
+
             item.innerHTML = `
                 <span class="birthday-name">${escapeHtml(birthday.name)}</span>
-                <span class="birthday-date">${dateText}</span>
+                <span class="birthday-date-wrapper">
+                    ${dateText}
+                    ${sendBtn}
+                </span>
             `;
 
             listElement.appendChild(item);
@@ -143,6 +151,38 @@ async function checkUpcomingBirthdays() {
     } catch (error) {
         console.error('Error checking birthdays:', error);
     }
+}
+
+// Send birthday message - pre-fills the gratitude message screen
+function sendBirthdayMessage(name, phoneNumber) {
+    // Navigate to send gratitude screen
+    showScreen('sendGratitude');
+    loadRecipientsList();
+
+    // Pre-fill the phone number
+    document.getElementById('recipientPhone').value = phoneNumber;
+    document.getElementById('recipientPhone').disabled = true;
+
+    // Try to select from dropdown if exists
+    const select = document.getElementById('recipientSelect');
+    for (let option of select.options) {
+        if (option.value === phoneNumber) {
+            select.value = phoneNumber;
+            break;
+        }
+    }
+
+    // Pre-fill birthday message
+    const message = `Happy Birthday, ${name}! 🎂🎉 Wishing you all the best on your special day. Hope it's filled with joy, love, and wonderful memories!`;
+    document.getElementById('gratitudeMessage').value = message;
+
+    // Update character count
+    const charCount = document.getElementById('messageCharCount');
+    if (charCount) {
+        charCount.textContent = message.length;
+    }
+
+    showToast(`Sending birthday wishes to ${name}!`);
 }
 
 // ========== GRATITUDE SUGGESTIONS ==========
@@ -1195,6 +1235,22 @@ async function renderCalendar() {
     const allSessions = await db.getAllSessions();
     const sessionDates = new Set(allSessions.map(s => s.sessionDate));
 
+    // Get all contacts with birthdays for this month
+    const allContacts = await db.getAllContacts();
+    const birthdayMap = {}; // Map of "MM-DD" to array of contact names
+    allContacts.forEach(contact => {
+        if (contact.birthday) {
+            const [bMonth, bDay] = contact.birthday.split('-');
+            if (parseInt(bMonth) === month + 1) {
+                const key = `${bMonth}-${bDay}`;
+                if (!birthdayMap[key]) {
+                    birthdayMap[key] = [];
+                }
+                birthdayMap[key].push(contact);
+            }
+        }
+    });
+
     // Calculate calendar grid
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
@@ -1219,7 +1275,7 @@ async function renderCalendar() {
     // Previous month days
     for (let i = startingDayOfWeek - 1; i >= 0; i--) {
         const day = prevMonthLastDay - i;
-        const dayCell = createCalendarDay(day, true, null);
+        const dayCell = createCalendarDay(day, true, null, false, false, []);
         grid.appendChild(dayCell);
     }
 
@@ -1230,7 +1286,13 @@ async function renderCalendar() {
         const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
         const hasEntry = sessionDates.has(dateStr);
 
-        const dayCell = createCalendarDay(day, false, dateStr, isToday, hasEntry);
+        // Check for birthdays on this day
+        const monthStr = String(month + 1).padStart(2, '0');
+        const dayStr = String(day).padStart(2, '0');
+        const birthdayKey = `${monthStr}-${dayStr}`;
+        const birthdaysOnDay = birthdayMap[birthdayKey] || [];
+
+        const dayCell = createCalendarDay(day, false, dateStr, isToday, hasEntry, birthdaysOnDay);
         grid.appendChild(dayCell);
     }
 
@@ -1238,13 +1300,13 @@ async function renderCalendar() {
     const totalCells = grid.children.length - 7; // Subtract headers
     const remainingCells = 42 - totalCells - 7; // 6 weeks * 7 days
     for (let day = 1; day <= remainingCells; day++) {
-        const dayCell = createCalendarDay(day, true, null);
+        const dayCell = createCalendarDay(day, true, null, false, false, []);
         grid.appendChild(dayCell);
     }
 }
 
 // Create calendar day cell
-function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry = false) {
+function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry = false, birthdays = []) {
     const dayCell = document.createElement('div');
     dayCell.className = 'calendar-day';
 
@@ -1257,11 +1319,23 @@ function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry
     if (hasEntry) {
         dayCell.classList.add('has-entry');
     }
+    if (birthdays.length > 0) {
+        dayCell.classList.add('has-birthday');
+    }
 
     const dayNumber = document.createElement('div');
     dayNumber.className = 'calendar-day-number';
     dayNumber.textContent = day;
     dayCell.appendChild(dayNumber);
+
+    // Show birthday indicator
+    if (birthdays.length > 0) {
+        const birthdayIndicator = document.createElement('div');
+        birthdayIndicator.className = 'calendar-birthday-indicator';
+        birthdayIndicator.textContent = '🎂';
+        birthdayIndicator.title = birthdays.map(c => c.name).join(', ');
+        dayCell.appendChild(birthdayIndicator);
+    }
 
     if (hasEntry) {
         const indicator = document.createElement('div');
@@ -1270,24 +1344,45 @@ function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry
     }
 
     if (!isOtherMonth && dateStr) {
-        dayCell.onclick = () => openCalendarDate(dateStr);
+        dayCell.onclick = () => openCalendarDate(dateStr, birthdays);
     }
 
     return dayCell;
 }
 
 // Open entry for selected calendar date
-async function openCalendarDate(dateStr) {
+async function openCalendarDate(dateStr, birthdays = []) {
     const session = await db.getSessionByDate(dateStr);
     const detailPane = document.getElementById('calendarDetailPane');
 
     if (session) {
         // Show entry details in side pane
         const sessionDetails = await db.getSessionWithDetails(session.id);
-        renderCalendarDetailPane(sessionDetails);
+        renderCalendarDetailPane(sessionDetails, birthdays);
     } else {
-        // Show empty state
+        // Show empty state with birthdays if any
+        let birthdayHTML = '';
+        if (birthdays.length > 0) {
+            birthdayHTML = `
+                <div class="calendar-birthday-banner">
+                    <div class="birthday-icon">🎂</div>
+                    <div class="birthday-content">
+                        <div class="birthday-title">Birthday${birthdays.length > 1 ? 's' : ''} on this day!</div>
+                        ${birthdays.map(c => `
+                            <div class="birthday-person">
+                                <span>${escapeHtml(c.name)}</span>
+                                <button class="send-birthday-btn" onclick="sendBirthdayMessage('${escapeHtml(c.name)}', '${escapeHtml(c.phoneNumber)}')">
+                                    Send Message 💬
+                                </button>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
         detailPane.innerHTML = `
+            ${birthdayHTML}
             <div class="calendar-detail-placeholder">
                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -1302,12 +1397,33 @@ async function openCalendarDate(dateStr) {
 }
 
 // Render calendar detail pane
-function renderCalendarDetailPane(session) {
+function renderCalendarDetailPane(session, birthdays = []) {
     const detailPane = document.getElementById('calendarDetailPane');
     detailPane.innerHTML = '';
 
     const detailContent = document.createElement('div');
     detailContent.className = 'calendar-detail-content';
+
+    // Show birthday banner if there are birthdays
+    if (birthdays.length > 0) {
+        const birthdayBanner = document.createElement('div');
+        birthdayBanner.className = 'calendar-birthday-banner';
+        birthdayBanner.innerHTML = `
+            <div class="birthday-icon">🎂</div>
+            <div class="birthday-content">
+                <div class="birthday-title">Birthday${birthdays.length > 1 ? 's' : ''} on this day!</div>
+                ${birthdays.map(c => `
+                    <div class="birthday-person">
+                        <span>${escapeHtml(c.name)}</span>
+                        <button class="send-birthday-btn" onclick="sendBirthdayMessage('${escapeHtml(c.name)}', '${escapeHtml(c.phoneNumber)}')">
+                            Send Message 💬
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        detailContent.appendChild(birthdayBanner);
+    }
 
     // Date header
     const date = new Date(session.sessionDate);
