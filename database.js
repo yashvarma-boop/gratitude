@@ -2,7 +2,7 @@
 class GratitudeDB {
     constructor() {
         this.dbName = 'GratitudeDB';
-        this.version = 2;
+        this.version = 3;
         this.db = null;
     }
 
@@ -45,6 +45,15 @@ class GratitudeDB {
                     const contactStore = db.createObjectStore('contacts', { keyPath: 'id', autoIncrement: true });
                     contactStore.createIndex('name', 'name', { unique: false });
                     contactStore.createIndex('phoneNumber', 'phoneNumber', { unique: false });
+                    contactStore.createIndex('birthday', 'birthday', { unique: false });
+                }
+
+                // Add birthday index to existing contacts store (for upgrade from v2 to v3)
+                if (event.oldVersion < 3 && db.objectStoreNames.contains('contacts')) {
+                    const contactStore = event.target.transaction.objectStore('contacts');
+                    if (!contactStore.indexNames.contains('birthday')) {
+                        contactStore.createIndex('birthday', 'birthday', { unique: false });
+                    }
                 }
             };
         });
@@ -408,13 +417,14 @@ class GratitudeDB {
     }
 
     // Add a new contact
-    async addContact(name, phoneNumber) {
+    async addContact(name, phoneNumber, birthday = null) {
         const transaction = this.db.transaction(['contacts'], 'readwrite');
         const contactStore = transaction.objectStore('contacts');
 
         const contact = {
             name,
             phoneNumber,
+            birthday,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -451,7 +461,7 @@ class GratitudeDB {
     }
 
     // Update contact
-    async updateContact(contactId, name, phoneNumber) {
+    async updateContact(contactId, name, phoneNumber, birthday = null) {
         const transaction = this.db.transaction(['contacts'], 'readwrite');
         const contactStore = transaction.objectStore('contacts');
 
@@ -462,6 +472,7 @@ class GratitudeDB {
                 if (contact) {
                     contact.name = name;
                     contact.phoneNumber = phoneNumber;
+                    contact.birthday = birthday;
                     contact.updatedAt = Date.now();
 
                     const updateRequest = contactStore.put(contact);
@@ -473,6 +484,48 @@ class GratitudeDB {
             };
             getRequest.onerror = () => reject(getRequest.error);
         });
+    }
+
+    // Get upcoming birthdays (within next X days)
+    async getUpcomingBirthdays(daysAhead = 7) {
+        const contacts = await this.getAllContacts();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const upcomingBirthdays = [];
+
+        contacts.forEach(contact => {
+            if (!contact.birthday) return;
+
+            // Parse birthday (stored as MM-DD format)
+            const [month, day] = contact.birthday.split('-').map(Number);
+
+            // Create this year's birthday date
+            const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+            birthdayThisYear.setHours(0, 0, 0, 0);
+
+            // If birthday has passed this year, check next year
+            if (birthdayThisYear < today) {
+                birthdayThisYear.setFullYear(today.getFullYear() + 1);
+            }
+
+            // Calculate days until birthday
+            const timeDiff = birthdayThisYear.getTime() - today.getTime();
+            const daysUntil = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+            if (daysUntil <= daysAhead) {
+                upcomingBirthdays.push({
+                    ...contact,
+                    daysUntil,
+                    birthdayDate: birthdayThisYear
+                });
+            }
+        });
+
+        // Sort by days until birthday
+        upcomingBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
+
+        return upcomingBirthdays;
     }
 
     // Delete contact

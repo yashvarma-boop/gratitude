@@ -62,6 +62,14 @@
             <!-- Welcome/Home Screen -->
             <div id="welcomeScreen" class="screen active">
                 <div class="welcome-container">
+                    <!-- Birthday Reminder Banner -->
+                    <div id="birthdayReminder" class="birthday-reminder" style="display: none;">
+                        <div class="birthday-icon">🎂</div>
+                        <div class="birthday-content">
+                            <div class="birthday-title" id="birthdayTitle">Upcoming Birthdays</div>
+                            <div class="birthday-list" id="birthdayList"></div>
+                        </div>
+                    </div>
                     <div class="welcome-circle" onclick="startJournaling()">
                         <h2 class="welcome-greeting" id="welcomeGreeting">Good evening, Sarah.</h2>
                         <p class="welcome-prompt">What's on your heart in you moment?</p>
@@ -282,6 +290,10 @@
                             <div class="setting-item">
                                 <label class="setting-label">Phone Number</label>
                                 <input type="tel" id="contactPhone" class="setting-input" placeholder="Enter phone number" maxlength="20">
+                            </div>
+                            <div class="setting-item">
+                                <label class="setting-label">Birthday (optional)</label>
+                                <input type="date" id="contactBirthday" class="setting-input">
                             </div>
                             <button class="primary-btn" onclick="saveContact()">Add Contact</button>
                         </div>

@@ -1693,3 +1693,92 @@ header {
     background: rgba(0, 0, 0, 0.05);
     cursor: not-allowed;
 }
+
+/* ========================================
+   BIRTHDAY REMINDER STYLES
+   ======================================== */
+.birthday-reminder {
+    background: linear-gradient(135deg, #FFE4EC 0%, #FFF0F5 100%);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+    box-shadow: var(--shadow-card);
+    border: 1px solid rgba(255, 182, 193, 0.3);
+    max-width: 400px;
+    width: 100%;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.birthday-icon {
+    font-size: 2rem;
+    line-height: 1;
+}
+
+.birthday-content {
+    flex: 1;
+}
+
+.birthday-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+    font-size: 1rem;
+}
+
+.birthday-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.birthday-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid rgba(255, 182, 193, 0.2);
+}
+
+.birthday-item:last-child {
+    border-bottom: none;
+}
+
+.birthday-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.9375rem;
+}
+
+.birthday-date {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.birthday-today {
+    background: linear-gradient(135deg, #FF6B95 0%, #FF8FAB 100%);
+    color: white;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.contact-birthday {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}

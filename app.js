@@ -94,10 +94,56 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadUserSettings();
     updateWelcomeGreeting();
     updateStreakDisplay(); // Initialize streak display
+    checkUpcomingBirthdays(); // Check for birthdays
     showScreen('welcome');
     updateDateDisplay();
     initializeSuggestions();
 });
+
+// ========== BIRTHDAY REMINDERS ==========
+
+async function checkUpcomingBirthdays() {
+    try {
+        const upcomingBirthdays = await db.getUpcomingBirthdays(7); // Check next 7 days
+
+        const reminderElement = document.getElementById('birthdayReminder');
+        const listElement = document.getElementById('birthdayList');
+
+        if (upcomingBirthdays.length === 0) {
+            reminderElement.style.display = 'none';
+            return;
+        }
+
+        // Build birthday list HTML
+        listElement.innerHTML = '';
+
+        upcomingBirthdays.forEach(birthday => {
+            const item = document.createElement('div');
+            item.className = 'birthday-item';
+
+            let dateText;
+            if (birthday.daysUntil === 0) {
+                dateText = '<span class="birthday-today">Today!</span>';
+            } else if (birthday.daysUntil === 1) {
+                dateText = 'Tomorrow';
+            } else {
+                const options = { weekday: 'short', month: 'short', day: 'numeric' };
+                dateText = birthday.birthdayDate.toLocaleDateString('en-AU', options);
+            }
+
+            item.innerHTML = `
+                <span class="birthday-name">${escapeHtml(birthday.name)}</span>
+                <span class="birthday-date">${dateText}</span>
+            `;
+
+            listElement.appendChild(item);
+        });
+
+        reminderElement.style.display = 'flex';
+    } catch (error) {
+        console.error('Error checking birthdays:', error);
+    }
+}
 
 // ========== GRATITUDE SUGGESTIONS ==========
 
@@ -151,6 +197,7 @@ function goHome() {
     clearForm();
     updateWelcomeGreeting();
     updateStreakDisplay(); // Update streak when going home
+    checkUpcomingBirthdays(); // Check for birthdays
     showScreen('welcome');
 }
 
@@ -1542,10 +1589,20 @@ async function loadContacts() {
     contacts.forEach(contact => {
         const contactItem = document.createElement('div');
         contactItem.className = 'contact-item';
+
+        // Format birthday for display
+        let birthdayDisplay = '';
+        if (contact.birthday) {
+            const [month, day] = contact.birthday.split('-');
+            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            birthdayDisplay = `🎂 ${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+        }
+
         contactItem.innerHTML = `
             <div class="contact-info">
                 <div class="contact-name">${escapeHtml(contact.name)}</div>
                 <div class="contact-phone">${escapeHtml(contact.phoneNumber)}</div>
+                ${birthdayDisplay ? `<div class="contact-birthday">${birthdayDisplay}</div>` : ''}
             </div>
             <div class="contact-actions">
                 <button class="icon-btn" onclick="editContact(${contact.id})" title="Edit">✏️</button>
@@ -1559,16 +1616,27 @@ async function loadContacts() {
 async function saveContact() {
     const name = document.getElementById('contactName').value.trim();
     const phone = document.getElementById('contactPhone').value.trim();
+    const birthdayInput = document.getElementById('contactBirthday').value;
 
     if (!name || !phone) {
         showToast('Please enter both name and phone number');
         return;
     }
 
+    // Convert birthday to MM-DD format for easier comparison (ignore year)
+    let birthday = null;
+    if (birthdayInput) {
+        const date = new Date(birthdayInput);
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        birthday = `${month}-${day}`;
+    }
+
     try {
-        await db.addContact(name, phone);
+        await db.addContact(name, phone, birthday);
         document.getElementById('contactName').value = '';
         document.getElementById('contactPhone').value = '';
+        document.getElementById('contactBirthday').value = '';
         showToast('Contact added!');
         await loadContacts();
     } catch (error) {
