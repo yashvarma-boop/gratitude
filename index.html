@@ -68,28 +68,23 @@
         <main id="mainContent">
             <!-- Welcome/Home Screen -->
             <div id="welcomeScreen" class="screen active">
-                <div class="welcome-container">
-                    <!-- Birthday Reminder Banner (Upcoming) -->
-                    <div id="birthdayReminder" class="birthday-reminder" style="display: none;">
-                        <div class="birthday-icon">🎂</div>
-                        <div class="birthday-content">
-                            <div class="birthday-title" id="birthdayTitle">Upcoming Birthdays</div>
-                            <div class="birthday-list" id="birthdayList"></div>
+                <div class="welcome-layout">
+                    <!-- Center area with welcome circle -->
+                    <div class="welcome-center">
+                        <div class="welcome-circle" onclick="startJournaling()">
+                            <h2 class="welcome-greeting" id="welcomeGreeting">Good evening, Sarah.</h2>
+                            <p class="welcome-prompt">What's on your heart in this moment?</p>
+                            <p class="welcome-tap-hint">Tap the circle to begin</p>
                         </div>
                     </div>
 
-                    <!-- Monthly Birthdays Banner -->
-                    <div id="monthlyBirthdaysReminder" class="monthly-birthdays-reminder" style="display: none;">
-                        <div class="birthday-icon">📅</div>
-                        <div class="birthday-content">
-                            <div class="birthday-title" id="monthlyBirthdaysTitle">Birthdays This Month</div>
-                            <div class="birthday-list" id="monthlyBirthdaysList"></div>
+                    <!-- Birthday Reminder Panel (Right Side) -->
+                    <div id="birthdayReminder" class="birthday-sidebar" style="display: none;">
+                        <div class="birthday-sidebar-header">
+                            <span class="birthday-icon">🎂</span>
+                            <span class="birthday-title" id="birthdayTitle">Upcoming Birthdays</span>
                         </div>
-                    </div>
-                    <div class="welcome-circle" onclick="startJournaling()">
-                        <h2 class="welcome-greeting" id="welcomeGreeting">Good evening, Sarah.</h2>
-                        <p class="welcome-prompt">What's on your heart in you moment?</p>
-                        <p class="welcome-tap-hint">Tap the circle to begin</p>
+                        <div class="birthday-list" id="birthdayList"></div>
                     </div>
                 </div>
             </div>

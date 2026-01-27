@@ -95,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateWelcomeGreeting();
     updateStreakDisplay(); // Initialize streak display
     checkUpcomingBirthdays(); // Check for upcoming birthdays
-    checkMonthlyBirthdays(); // Check for monthly birthdays
     showScreen('welcome');
     updateDateDisplay();
     initializeSuggestions();
@@ -105,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkUpcomingBirthdays() {
     try {
-        const upcomingBirthdays = await db.getUpcomingBirthdays(7); // Check next 7 days
+        const upcomingBirthdays = await db.getUpcomingBirthdays(14); // Check next 14 days
 
         const reminderElement = document.getElementById('birthdayReminder');
         const listElement = document.getElementById('birthdayList');
@@ -132,10 +131,8 @@ async function checkUpcomingBirthdays() {
                 dateText = birthday.birthdayDate.toLocaleDateString('en-AU', options);
             }
 
-            // Show send message button for today's birthdays
-            const sendBtn = birthday.daysUntil === 0
-                ? `<button class="send-birthday-btn-small" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(birthday.name)}', '${escapeHtml(birthday.phoneNumber)}')">💬</button>`
-                : '';
+            // Always show send message button
+            const sendBtn = `<button class="send-birthday-btn-small" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(birthday.name)}', '${escapeHtml(birthday.phoneNumber)}')" title="Send birthday message">💬</button>`;
 
             item.innerHTML = `
                 <span class="birthday-name">${escapeHtml(birthday.name)}</span>
@@ -294,7 +291,6 @@ function goHome() {
     updateWelcomeGreeting();
     updateStreakDisplay(); // Update streak when going home
     checkUpcomingBirthdays(); // Check for upcoming birthdays
-    checkMonthlyBirthdays(); // Check for monthly birthdays
     showScreen('welcome');
 }
 
@@ -939,11 +935,41 @@ async function showDetail(sessionId) {
     const detailContent = document.getElementById('detailContent');
     detailContent.innerHTML = '';
 
+    // Check for birthdays on this date
+    const date = new Date(session.sessionDate);
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const birthdayKey = `${month}-${day}`;
+
+    // Get contacts with birthdays on this date
+    const allContacts = await db.getAllContacts();
+    const birthdaysOnThisDay = allContacts.filter(c => c.birthday === birthdayKey);
+
+    // Show birthday banner if any
+    if (birthdaysOnThisDay.length > 0) {
+        const birthdayBanner = document.createElement('div');
+        birthdayBanner.className = 'detail-birthday-banner';
+        birthdayBanner.innerHTML = `
+            <div class="birthday-icon">🎂</div>
+            <div class="birthday-content">
+                <div class="birthday-title">Birthday${birthdaysOnThisDay.length > 1 ? 's' : ''} on this day!</div>
+                ${birthdaysOnThisDay.map(c => `
+                    <div class="birthday-person">
+                        <span>${escapeHtml(c.name)}</span>
+                        <button class="send-birthday-btn" onclick="sendBirthdayMessage('${escapeHtml(c.name)}', '${escapeHtml(c.phoneNumber)}')">
+                            Send Message 💬
+                        </button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+        detailContent.appendChild(birthdayBanner);
+    }
+
     // Create header with date
     const headerDiv = document.createElement('div');
     headerDiv.className = 'detail-header';
 
-    const date = new Date(session.sessionDate);
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const dateString = date.toLocaleDateString('en-US', dateOptions);
 
