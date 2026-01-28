@@ -1029,6 +1029,7 @@ header {
 .calendar-day {
     aspect-ratio: 1;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     font-size: 0.875rem;
@@ -1036,6 +1037,8 @@ header {
     cursor: pointer;
     transition: all var(--transition);
     background: rgba(255, 255, 255, 0.4);
+    position: relative;
+    min-height: 40px;
 }
 
 .calendar-day:hover {
@@ -1056,6 +1059,61 @@ header {
 
 .calendar-day.empty:hover {
     transform: none;
+}
+
+.calendar-day.other-month {
+    opacity: 0.4;
+    background: transparent;
+}
+
+.calendar-day.other-month:hover {
+    transform: none;
+    cursor: default;
+}
+
+.calendar-day.today {
+    border: 2px solid var(--accent-sage);
+    font-weight: 700;
+}
+
+.calendar-day.today.has-entry {
+    border-color: white;
+}
+
+.calendar-day-number {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    z-index: 1;
+}
+
+.calendar-day.has-entry .calendar-day-number {
+    color: white;
+}
+
+.calendar-day.other-month .calendar-day-number {
+    color: var(--text-muted);
+}
+
+.calendar-day-indicator {
+    position: absolute;
+    bottom: 4px;
+    width: 6px;
+    height: 6px;
+    background: var(--accent-sage);
+    border-radius: 50%;
+}
+
+.calendar-day.has-entry .calendar-day-indicator {
+    background: white;
+}
+
+.calendar-birthday-indicator {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    font-size: 0.65rem;
+    line-height: 1;
 }
 
 /* ========================================
