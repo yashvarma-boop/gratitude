@@ -40,6 +40,15 @@
                 <div class="streak-badge" id="streakBadge">
                     <div class="streak-number" id="streakNumber">0🔥</div>
                 </div>
+                <button id="addressBookBtn" class="header-nav-btn" onclick="showAddressBook()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                        <circle cx="9" cy="7" r="4"/>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <span>Contacts</span>
+                </button>
                 <button id="sendGratitudeBtn" class="header-nav-btn" onclick="showSendGratitude()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M22 2L11 13"/>
@@ -172,6 +181,7 @@
                     <button id="saveBtn" class="primary-btn" onclick="saveEntry()">Save Entry 💾</button>
                     <button id="viewHistoryBtn" class="secondary-btn" onclick="showHistory()">View Past Entries</button>
                     <button id="sendGratitudeBtn" class="secondary-btn" onclick="showSendGratitude()">Send Gratitude 💌</button>
+                    <button id="addressBookBtn" class="secondary-btn" onclick="showAddressBook()">Address Book 📇</button>
                 </div>
             </div>
 
@@ -288,17 +298,15 @@
 
             <!-- Address Book Screen -->
             <div id="addressBookScreen" class="screen">
-                <div class="settings-container">
-                    <div class="settings-card">
-                        <h2 class="settings-title">Address Book</h2>
-
-                        <div class="contact-form">
+                <div class="address-book-container">
+                    <!-- Left Panel: Add/Edit Contact Form -->
+                    <div class="address-book-form-panel">
+                        <div class="settings-card">
                             <h3 id="contactFormTitle">Add New Contact</h3>
                             <input type="hidden" id="editingContactId" value="">
 
                             <!-- Contact Photo -->
                             <div class="setting-item contact-photo-section">
-                                <label class="setting-label">Photo (optional)</label>
                                 <div class="contact-photo-upload">
                                     <div class="contact-photo-preview" id="contactPhotoPreview">
                                         <span class="photo-placeholder">📷</span>
@@ -312,44 +320,45 @@
                             </div>
 
                             <div class="setting-item">
-                                <label class="setting-label">Name</label>
+                                <label class="setting-label">Name *</label>
                                 <input type="text" id="contactName" class="setting-input" placeholder="Enter name" maxlength="50">
                             </div>
                             <div class="setting-item">
-                                <label class="setting-label">Phone Number</label>
+                                <label class="setting-label">Phone Number *</label>
                                 <input type="tel" id="contactPhone" class="setting-input" placeholder="Enter phone number" maxlength="20">
                             </div>
                             <div class="setting-item">
-                                <label class="setting-label">Birthday (optional)</label>
+                                <label class="setting-label">Birthday</label>
                                 <input type="date" id="contactBirthday" class="setting-input">
                             </div>
                             <div class="contact-form-buttons">
                                 <button class="primary-btn" onclick="saveContact()" id="saveContactBtn">Add Contact</button>
                                 <button class="secondary-btn" onclick="cancelEditContact()" id="cancelEditBtn" style="display: none;">Cancel</button>
                             </div>
-                        </div>
 
-                        <!-- CSV Import/Export Section -->
-                        <div class="csv-section">
-                            <h3>Import / Export Contacts</h3>
-                            <div class="csv-buttons">
-                                <button class="secondary-btn" onclick="importContactsCSV()">
-                                    📥 Import CSV
-                                </button>
-                                <button class="secondary-btn" onclick="exportContactsCSV()">
-                                    📤 Export CSV
-                                </button>
+                            <!-- CSV Import/Export Section -->
+                            <div class="csv-section">
+                                <h4>Import / Export</h4>
+                                <div class="csv-buttons">
+                                    <button class="secondary-btn small" onclick="importContactsCSV()">📥 Import CSV</button>
+                                    <button class="secondary-btn small" onclick="exportContactsCSV()">📤 Export CSV</button>
+                                </div>
+                                <p class="csv-hint">Google & Outlook compatible</p>
+                                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
                             </div>
-                            <p class="csv-hint">Compatible with Google Contacts and Microsoft Outlook</p>
-                            <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleCSVImport(event)">
                         </div>
+                    </div>
 
-                        <div class="contacts-list">
-                            <h3>My Contacts</h3>
-                            <div id="contactsList"></div>
+                    <!-- Right Panel: Contacts List -->
+                    <div class="address-book-list-panel">
+                        <div class="contacts-list-header">
+                            <h2 class="settings-title">My Contacts</h2>
+                            <div class="contacts-search">
+                                <input type="text" id="contactSearchInput" class="setting-input" placeholder="🔍 Search contacts..." oninput="filterContacts()">
+                            </div>
+                            <div class="contacts-count" id="contactsCount">0 contacts</div>
                         </div>
-
-                        <button class="secondary-btn" onclick="showSettings()">Back to Settings</button>
+                        <div class="contacts-grid" id="contactsList"></div>
                     </div>
                 </div>
             </div>

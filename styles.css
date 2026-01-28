@@ -2126,3 +2126,277 @@ header {
 .contact-form-buttons .secondary-btn {
     flex: 1;
 }
+
+/* ========================================
+   ADDRESS BOOK TWO-PANEL LAYOUT
+   ======================================== */
+#addressBookScreen.active {
+    max-width: 1200px;
+}
+
+.address-book-container {
+    display: grid;
+    grid-template-columns: 350px 1fr;
+    gap: var(--spacing-xl);
+    width: 100%;
+}
+
+.address-book-form-panel {
+    position: sticky;
+    top: var(--spacing-lg);
+    align-self: start;
+}
+
+.address-book-form-panel .settings-card {
+    max-width: none;
+}
+
+.address-book-form-panel h3 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-lg);
+    text-align: center;
+}
+
+.address-book-list-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-lg);
+}
+
+.contacts-list-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.contacts-list-header .settings-title {
+    margin-bottom: 0;
+    text-align: left;
+    flex: 1;
+}
+
+.contacts-search {
+    flex: 1;
+    min-width: 200px;
+}
+
+.contacts-search .setting-input {
+    margin-bottom: 0;
+}
+
+.contacts-count {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    background: var(--bg-card);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+}
+
+/* Contacts Grid */
+.contacts-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: var(--spacing-lg);
+    max-height: calc(100vh - 320px);
+    overflow-y: auto;
+    padding: var(--spacing-sm);
+    scroll-behavior: smooth;
+}
+
+.contacts-grid::-webkit-scrollbar {
+    width: 8px;
+}
+
+.contacts-grid::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+}
+
+.contacts-grid::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+}
+
+.contacts-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+/* Contact Card */
+.contact-card {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-lg);
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    border: 2px solid transparent;
+}
+
+.contact-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-soft);
+}
+
+.contact-card.birthday-today {
+    background: linear-gradient(135deg, #FFF5F8 0%, #FFE4EC 100%);
+    border-color: rgba(255, 107, 149, 0.4);
+}
+
+.contact-card-header {
+    position: relative;
+    margin-bottom: var(--spacing-md);
+}
+
+.contact-card-photo {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--bg-card);
+    box-shadow: var(--shadow-card);
+}
+
+.contact-card-photo-placeholder {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent-purple) 0%, var(--accent-sage) 100%);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.75rem;
+    box-shadow: var(--shadow-card);
+}
+
+.birthday-badge {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: linear-gradient(135deg, #FF6B95 0%, #FF8FAB 100%);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    box-shadow: 0 2px 6px rgba(255, 107, 149, 0.4);
+}
+
+.contact-card-body {
+    flex: 1;
+    width: 100%;
+}
+
+.contact-card-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1.0625rem;
+    margin-bottom: 4px;
+}
+
+.contact-card-phone {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 4px;
+}
+
+.contact-card-birthday {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.contact-card-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-md);
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.contact-action-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: rgba(255, 255, 255, 0.8);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+}
+
+.contact-action-btn:hover {
+    transform: scale(1.1);
+    background: white;
+    box-shadow: var(--shadow-card);
+}
+
+.contact-action-btn.delete:hover {
+    background: #FFEBEE;
+}
+
+.send-birthday-btn-card {
+    background: linear-gradient(135deg, #FF6B95 0%, #FF8FAB 100%);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: var(--radius-sm);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.send-birthday-btn-card:hover {
+    transform: scale(1.05);
+    box-shadow: 0 2px 8px rgba(255, 107, 149, 0.4);
+}
+
+/* Empty State for Contacts */
+.empty-state-text {
+    text-align: center;
+    color: var(--text-muted);
+    padding: var(--spacing-xl);
+    font-size: 0.9375rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    margin: var(--spacing-lg) 0;
+}
+
+/* Responsive Address Book */
+@media (max-width: 900px) {
+    .address-book-container {
+        grid-template-columns: 1fr;
+    }
+
+    .address-book-form-panel {
+        position: relative;
+        top: 0;
+    }
+
+    .contacts-grid {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    }
+}
+
+@media (max-width: 500px) {
+    .contacts-grid {
+        grid-template-columns: 1fr;
+    }
+}

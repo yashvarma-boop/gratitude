@@ -563,6 +563,7 @@ function showScreen(screenName) {
     const settingsBtn = document.getElementById('settingsBtn');
     const shareBtn = document.getElementById('shareBtn');
     const sendGratitudeBtn = document.getElementById('sendGratitudeBtn');
+    const addressBookBtn = document.getElementById('addressBookBtn');
 
     // Show/hide header elements based on screen
     switch (screenName) {
@@ -573,6 +574,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'flex';
+            addressBookBtn.style.display = 'flex';
             break;
         case 'entry':
             document.getElementById('entryScreen').classList.add('active');
@@ -581,6 +583,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'flex';
+            addressBookBtn.style.display = 'flex';
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
@@ -589,6 +592,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'flex';
+            addressBookBtn.style.display = 'flex';
             loadHistory();
             break;
         case 'settings':
@@ -598,6 +602,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'none';
+            addressBookBtn.style.display = 'none';
             break;
         case 'detail':
             document.getElementById('detailScreen').classList.add('active');
@@ -607,6 +612,7 @@ function showScreen(screenName) {
             shareBtn.style.display = 'flex';
             shareBtn.onclick = shareCurrentEntry;
             sendGratitudeBtn.style.display = 'flex';
+            addressBookBtn.style.display = 'flex';
             break;
         case 'addressBook':
             document.getElementById('addressBookScreen').classList.add('active');
@@ -614,7 +620,8 @@ function showScreen(screenName) {
             homeBtn.style.display = 'flex';
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'none';
+            sendGratitudeBtn.style.display = 'flex';
+            addressBookBtn.style.display = 'none';
             break;
         case 'sendGratitude':
             document.getElementById('sendGratitudeScreen').classList.add('active');
@@ -623,6 +630,7 @@ function showScreen(screenName) {
             settingsBtn.style.display = 'flex';
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'none';
+            addressBookBtn.style.display = 'flex';
             break;
     }
 
@@ -731,6 +739,7 @@ function removeMedia(itemId, index) {
 // Save Entry
 async function saveEntry() {
     const items = [];
+    let hasAnyContent = false;
 
     // Validate and collect data
     for (let i = 1; i <= 3; i++) {
@@ -738,16 +747,22 @@ async function saveEntry() {
         const text = textarea.value.trim();
         const media = itemMediaData[i] || [];
 
-        // Each item must have text OR media
-        if (!text && media.length === 0) {
-            showToast(`Item ${i} must have text or media`);
-            return;
+        // Track if there's any content at all
+        if (text || media.length > 0) {
+            hasAnyContent = true;
         }
 
+        // Always push the item (even if empty)
         items.push({
             text,
             media
         });
+    }
+
+    // At least one item must have content
+    if (!hasAnyContent) {
+        showToast('Please add at least one gratitude item');
+        return;
     }
 
     try {
@@ -1045,10 +1060,9 @@ async function showDetail(sessionId) {
                 mediaGrid.appendChild(mediaItem);
             });
 
-            itemContent.appendChild(mediaGrid);
+            itemDiv.appendChild(mediaGrid);
         }
 
-        itemDiv.appendChild(itemContent);
         itemsContainer.appendChild(itemDiv);
     });
 
@@ -1789,43 +1803,65 @@ async function showAddressBook() {
 async function loadContacts() {
     const contacts = await db.getAllContacts();
     const contactsList = document.getElementById('contactsList');
+    const countElement = document.getElementById('contactsCount');
+
+    // Update contact count
+    if (countElement) {
+        countElement.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
+    }
 
     if (contacts.length === 0) {
-        contactsList.innerHTML = '<p class="empty-state-text">No contacts yet. Add one above!</p>';
+        contactsList.innerHTML = '<p class="empty-state-text">No contacts yet. Add your first contact!</p>';
         return;
     }
 
+    // Check for today's birthdays
+    const today = new Date();
+    const todayKey = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
     contactsList.innerHTML = '';
     contacts.forEach(contact => {
-        const contactItem = document.createElement('div');
-        contactItem.className = 'contact-item';
+        const contactCard = document.createElement('div');
+        contactCard.className = 'contact-card';
+        contactCard.dataset.name = contact.name;
+        contactCard.dataset.phone = contact.phoneNumber;
+
+        // Check if it's their birthday today
+        const isBirthdayToday = contact.birthday === todayKey;
+        if (isBirthdayToday) {
+            contactCard.classList.add('birthday-today');
+        }
 
         // Format birthday for display
         let birthdayDisplay = '';
         if (contact.birthday) {
             const [month, day] = contact.birthday.split('-');
             const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            birthdayDisplay = `🎂 ${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+            birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
         }
 
         // Contact photo or placeholder
         const photoHTML = contact.photo
-            ? `<img src="${contact.photo}" class="contact-list-photo" alt="${escapeHtml(contact.name)}">`
-            : `<div class="contact-list-photo-placeholder">${contact.name.charAt(0).toUpperCase()}</div>`;
+            ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(contact.name)}">`
+            : `<div class="contact-card-photo-placeholder">${contact.name.charAt(0).toUpperCase()}</div>`;
 
-        contactItem.innerHTML = `
-            ${photoHTML}
-            <div class="contact-info">
-                <div class="contact-name">${escapeHtml(contact.name)}</div>
-                <div class="contact-phone">${escapeHtml(contact.phoneNumber)}</div>
-                ${birthdayDisplay ? `<div class="contact-birthday">${birthdayDisplay}</div>` : ''}
+        contactCard.innerHTML = `
+            <div class="contact-card-header">
+                ${photoHTML}
+                ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
             </div>
-            <div class="contact-actions">
-                <button class="icon-btn" onclick="editContact(${contact.id})" title="Edit">✏️</button>
-                <button class="icon-btn" onclick="deleteContactConfirm(${contact.id})" title="Delete">🗑️</button>
+            <div class="contact-card-body">
+                <div class="contact-card-name">${escapeHtml(contact.name)}</div>
+                <div class="contact-card-phone">${escapeHtml(contact.phoneNumber)}</div>
+                ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
+            </div>
+            <div class="contact-card-actions">
+                ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}')" title="Send birthday message">💬 Send</button>` : ''}
+                <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact(${contact.id})" title="Edit">✏️</button>
+                <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm(${contact.id})" title="Delete">🗑️</button>
             </div>
         `;
-        contactsList.appendChild(contactItem);
+        contactsList.appendChild(contactCard);
     });
 }
 
@@ -2111,27 +2147,35 @@ function parseCSVLine(line) {
 function parseBirthdayFromCSV(dateStr) {
     if (!dateStr) return null;
 
+    // Clean the string
+    dateStr = dateStr.trim();
+
     // Try various date formats
     const formats = [
-        /^(\d{4})-(\d{2})-(\d{2})$/,  // YYYY-MM-DD
-        /^(\d{2})\/(\d{2})\/(\d{4})$/,  // MM/DD/YYYY or DD/MM/YYYY
-        /^(\d{2})-(\d{2})-(\d{4})$/,  // MM-DD-YYYY or DD-MM-YYYY
-        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/,  // M/D/YYYY
+        { regex: /^(\d{4})-(\d{1,2})-(\d{1,2})$/, type: 'YYYY-MM-DD' },  // YYYY-MM-DD (Google format)
+        { regex: /^(\d{2})\/(\d{2})\/(\d{4})$/, type: 'MM/DD/YYYY' },  // MM/DD/YYYY
+        { regex: /^(\d{2})-(\d{2})-(\d{4})$/, type: 'MM-DD-YYYY' },  // MM-DD-YYYY
+        { regex: /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/, type: 'M/D/YYYY' },  // M/D/YYYY
+        { regex: /^(\d{1,2})-(\d{1,2})$/, type: 'MM-DD' },  // MM-DD (already in our format)
     ];
 
     for (const format of formats) {
-        const match = dateStr.match(format);
+        const match = dateStr.match(format.regex);
         if (match) {
             let month, day;
 
-            if (format === formats[0]) {
-                // YYYY-MM-DD
-                month = match[2];
-                day = match[3];
+            if (format.type === 'YYYY-MM-DD') {
+                // YYYY-MM-DD format (Google Contacts export)
+                month = String(match[2]).padStart(2, '0');
+                day = String(match[3]).padStart(2, '0');
+            } else if (format.type === 'MM-DD') {
+                // Already in MM-DD format
+                month = String(match[1]).padStart(2, '0');
+                day = String(match[2]).padStart(2, '0');
             } else {
                 // Assume MM/DD/YYYY format (US style)
-                month = match[1].padStart(2, '0');
-                day = match[2].padStart(2, '0');
+                month = String(match[1]).padStart(2, '0');
+                day = String(match[2]).padStart(2, '0');
             }
 
             // Validate
@@ -2301,4 +2345,26 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Filter contacts by search term
+function filterContacts() {
+    const searchTerm = document.getElementById('contactSearchInput').value.toLowerCase().trim();
+    const contactItems = document.querySelectorAll('.contact-card');
+    let visibleCount = 0;
+
+    contactItems.forEach(item => {
+        const name = item.dataset.name?.toLowerCase() || '';
+        const phone = item.dataset.phone?.toLowerCase() || '';
+        const matches = name.includes(searchTerm) || phone.includes(searchTerm);
+
+        item.style.display = matches ? 'flex' : 'none';
+        if (matches) visibleCount++;
+    });
+
+    // Update visible count
+    const countElement = document.getElementById('contactsCount');
+    if (countElement) {
+        countElement.textContent = `${visibleCount} contact${visibleCount !== 1 ? 's' : ''} found`;
+    }
 }
