@@ -547,7 +547,7 @@ function loadExistingEntry(sessionDetails) {
         }
     });
 
-    showToast('Loaded today\'s entry');
+    showToast('Entry loaded');
 }
 
 // Screen Management
@@ -781,17 +781,17 @@ async function saveEntry() {
                 showDetail(sessionId);
             }, 1000);
         } else {
-            const today = formatDate(new Date());
+            const entryDate = formatDate(currentEntryDate);
 
-            // Check if session already exists for today
-            const existing = await db.getSessionByDate(today);
+            // Check if session already exists for this date
+            const existing = await db.getSessionByDate(entryDate);
             if (existing) {
                 // Delete existing session
                 await db.deleteSession(existing.id);
             }
 
-            // Create new session
-            await db.createSession(today, items);
+            // Create new session for the selected date
+            await db.createSession(entryDate, items);
 
             showToast('✨ Entry saved successfully!');
 
@@ -2078,9 +2078,17 @@ function parseCSV(csvText) {
     const lastNameIndex = headers.findIndex(h =>
         h === 'last name' || h === 'family name' || h === 'surname'
     );
-    const phoneIndex = headers.findIndex(h =>
-        h.includes('phone') || h.includes('mobile') || h.includes('telephone') || h === 'phone 1 - value'
+    // Phone column: prioritise 'value' columns over 'type' columns (Google format: "Phone 1 - Value")
+    let phoneIndex = headers.findIndex(h =>
+        h.includes('phone') && h.includes('value')
     );
+    // Fallback to mobile/telephone columns or any phone column that's not a type column
+    if (phoneIndex === -1) {
+        phoneIndex = headers.findIndex(h =>
+            (h.includes('mobile') || h.includes('telephone') || h.includes('phone')) &&
+            !h.includes('type')
+        );
+    }
     const birthdayIndex = headers.findIndex(h =>
         h === 'birthday' || h === 'birth date' || h === 'date of birth' || h === 'dob'
     );
