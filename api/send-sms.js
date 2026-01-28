@@ -8,6 +8,7 @@ const twilio = require('twilio');
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+const appUrl = process.env.APP_URL || '';
 
 module.exports = async (req, res) => {
     // Enable CORS
@@ -26,12 +27,24 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { to, message } = req.body;
+        const { to, message, senderName } = req.body;
 
         // Validate input
         if (!to || !message) {
             return res.status(400).json({ error: 'Phone number and message are required' });
         }
+
+        // Build the full message with Gratitude signature
+        let fullMessage = message;
+        const signatureParts = [];
+        if (senderName) {
+            signatureParts.push(`— ${senderName}`);
+        }
+        signatureParts.push('Sent with Gratitude');
+        if (appUrl) {
+            signatureParts.push(`Get Gratitude: ${appUrl}`);
+        }
+        fullMessage += '\n\n' + signatureParts.join('\n');
 
         // Validate environment variables
         if (!accountSid || !authToken || !twilioPhoneNumber) {
@@ -51,7 +64,7 @@ module.exports = async (req, res) => {
 
         // Send SMS
         const twilioMessage = await client.messages.create({
-            body: message,
+            body: fullMessage,
             from: twilioPhoneNumber,
             to: formattedPhone
         });

@@ -2317,7 +2317,8 @@ async function sendGratitudeMessage() {
             },
             body: JSON.stringify({
                 to: recipientPhone,
-                message: message
+                message: message,
+                senderName: localStorage.getItem('userName') || ''
             })
         });
 
