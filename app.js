@@ -12,6 +12,7 @@ let cameraStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
 let currentCameraItemId = null;
+let selectedChannel = 'sms'; // 'sms' or 'whatsapp'
 let itemMediaData = {
     1: [],
     2: [],
@@ -2246,8 +2247,30 @@ async function exportContactsCSV() {
 }
 
 // Send Gratitude Functions
+function selectChannel(channel) {
+    selectedChannel = channel;
+    const smsBtn = document.getElementById('channelSms');
+    const whatsappBtn = document.getElementById('channelWhatsapp');
+    const whatsappNote = document.getElementById('whatsappNote');
+    const sendBtn = document.getElementById('sendMessageBtn');
+
+    if (channel === 'whatsapp') {
+        smsBtn.classList.remove('active');
+        whatsappBtn.classList.add('active');
+        whatsappNote.style.display = 'block';
+        sendBtn.textContent = 'Send WhatsApp 💌';
+    } else {
+        whatsappBtn.classList.remove('active');
+        smsBtn.classList.add('active');
+        whatsappNote.style.display = 'none';
+        sendBtn.textContent = 'Send SMS 💌';
+    }
+}
+
 async function showSendGratitude() {
     showScreen('sendGratitude');
+    // Reset channel to SMS by default
+    selectChannel('sms');
     await loadRecipientsList();
 }
 
@@ -2305,11 +2328,12 @@ async function sendGratitudeMessage() {
         return;
     }
 
+    const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
+
     // Show sending status
-    showToast('Sending message...');
+    showToast(`Sending ${channelLabel}...`);
 
     try {
-        // Send SMS via API
         const response = await fetch('/api/send-sms', {
             method: 'POST',
             headers: {
@@ -2317,7 +2341,8 @@ async function sendGratitudeMessage() {
             },
             body: JSON.stringify({
                 to: recipientPhone,
-                message: message
+                message: message,
+                channel: selectedChannel
             })
         });
 
@@ -2335,7 +2360,7 @@ async function sendGratitudeMessage() {
         document.getElementById('gratitudeMessage').value = '';
         document.getElementById('messageCharCount').textContent = '0';
 
-        showToast('Message sent successfully! ✓');
+        showToast(`${channelLabel} sent successfully! ✓`);
 
         // Return to home after 2 seconds
         setTimeout(() => {

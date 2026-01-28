@@ -370,6 +370,18 @@
                         <h2 class="settings-title">Send Gratitude</h2>
 
                         <div class="setting-item">
+                            <label class="setting-label">Send via</label>
+                            <div class="channel-toggle">
+                                <button id="channelSms" class="channel-btn active" onclick="selectChannel('sms')">
+                                    📱 SMS
+                                </button>
+                                <button id="channelWhatsapp" class="channel-btn" onclick="selectChannel('whatsapp')">
+                                    💬 WhatsApp
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="setting-item">
                             <label class="setting-label">Select Contact</label>
                             <select id="recipientSelect" class="setting-input" onchange="handleRecipientChange()">
                                 <option value="">Choose from address book...</option>
@@ -387,7 +399,11 @@
                             <div class="char-count"><span id="messageCharCount">0</span>/500</div>
                         </div>
 
-                        <button class="primary-btn" onclick="sendGratitudeMessage()">Send Message 💌</button>
+                        <div id="whatsappNote" class="channel-note" style="display: none;">
+                            Note: The recipient must have WhatsApp and may need to message your WhatsApp number first (Twilio requirement).
+                        </div>
+
+                        <button class="primary-btn" id="sendMessageBtn" onclick="sendGratitudeMessage()">Send SMS 💌</button>
                         <button class="secondary-btn" onclick="goHome()">Cancel</button>
                     </div>
                 </div>
