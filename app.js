@@ -96,7 +96,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateWelcomeGreeting();
     updateStreakDisplay(); // Initialize streak display
     checkUpcomingBirthdays(); // Check for upcoming birthdays
-    showScreen('welcome');
+
+    // First visit shows welcome, subsequent visits go to calendar
+    const hasVisited = localStorage.getItem('hasVisitedBefore');
+    if (hasVisited) {
+        showScreen('history');
+        switchToCalendarView();
+    } else {
+        localStorage.setItem('hasVisitedBefore', 'true');
+        showScreen('welcome');
+    }
+
     updateDateDisplay();
     initializeSuggestions();
 });
@@ -292,7 +302,8 @@ function goHome() {
     updateWelcomeGreeting();
     updateStreakDisplay(); // Update streak when going home
     checkUpcomingBirthdays(); // Check for upcoming birthdays
-    showScreen('welcome');
+    showScreen('history');
+    switchToCalendarView();
 }
 
 function startJournaling() {
@@ -1311,11 +1322,29 @@ function switchView(viewType) {
     currentView = viewType;
 
     // Update toggle buttons
-    document.querySelectorAll('.toggle-btn').forEach(btn => {
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.closest('.view-toggle-btn').classList.add('active');
+    }
 
+    switchToView(viewType);
+}
+
+// Programmatic view switch (no event required)
+function switchToCalendarView() {
+    currentView = 'calendar';
+
+    // Update toggle buttons
+    const toggleBtns = document.querySelectorAll('.view-toggle-btn');
+    toggleBtns.forEach(btn => btn.classList.remove('active'));
+    if (toggleBtns.length > 1) toggleBtns[1].classList.add('active');
+
+    switchToView('calendar');
+}
+
+function switchToView(viewType) {
     // Show/hide views
     if (viewType === 'list') {
         document.getElementById('listView').classList.add('active');
@@ -1409,6 +1438,114 @@ async function renderCalendar() {
         const dayCell = createCalendarDay(day, true, null, false, false, []);
         grid.appendChild(dayCell);
     }
+
+    // Render upcoming birthdays panel below calendar
+    renderCalendarBirthdays();
+}
+
+// Render upcoming birthdays panel on the calendar view
+async function renderCalendarBirthdays() {
+    const panel = document.getElementById('calendarBirthdayPanel');
+    const list = document.getElementById('calendarBirthdayList');
+    if (!panel || !list) return;
+
+    // Get birthdays within the next 30 days (plus 3 days past for grey-out)
+    const contacts = await db.getAllContacts();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const birthdays = [];
+
+    contacts.forEach(contact => {
+        if (!contact.birthday) return;
+        const [month, day] = contact.birthday.split('-').map(Number);
+
+        const birthdayThisYear = new Date(today.getFullYear(), month - 1, day);
+        birthdayThisYear.setHours(0, 0, 0, 0);
+
+        // Check if birthday already passed this year
+        const timeDiff = birthdayThisYear.getTime() - today.getTime();
+        const daysUntil = Math.round(timeDiff / (1000 * 60 * 60 * 24));
+
+        // Show birthdays from 3 days ago (greyed out) to 30 days ahead
+        if (daysUntil >= -3 && daysUntil <= 30) {
+            birthdays.push({
+                ...contact,
+                daysUntil,
+                birthdayDate: birthdayThisYear
+            });
+        } else {
+            // Also check next year for dates near year boundary
+            const birthdayNextYear = new Date(today.getFullYear() + 1, month - 1, day);
+            birthdayNextYear.setHours(0, 0, 0, 0);
+            const nextDiff = birthdayNextYear.getTime() - today.getTime();
+            const nextDaysUntil = Math.round(nextDiff / (1000 * 60 * 60 * 24));
+            if (nextDaysUntil >= -3 && nextDaysUntil <= 30) {
+                birthdays.push({
+                    ...contact,
+                    daysUntil: nextDaysUntil,
+                    birthdayDate: birthdayNextYear
+                });
+            }
+        }
+    });
+
+    // Sort: today first, then upcoming, then recently passed at the bottom
+    birthdays.sort((a, b) => {
+        // Recently passed (negative) go to bottom
+        if (a.daysUntil < 0 && b.daysUntil >= 0) return 1;
+        if (a.daysUntil >= 0 && b.daysUntil < 0) return -1;
+        return a.daysUntil - b.daysUntil;
+    });
+
+    if (birthdays.length === 0) {
+        panel.style.display = 'none';
+        return;
+    }
+
+    list.innerHTML = '';
+
+    birthdays.forEach(birthday => {
+        const item = document.createElement('div');
+        item.className = 'calendar-birthday-item';
+
+        const isPassed = birthday.daysUntil < 0;
+        const isToday = birthday.daysUntil === 0;
+
+        if (isPassed) {
+            item.classList.add('birthday-passed');
+        }
+        if (isToday) {
+            item.classList.add('birthday-is-today');
+        }
+
+        let dateLabel;
+        if (isToday) {
+            dateLabel = 'Today!';
+        } else if (birthday.daysUntil === 1) {
+            dateLabel = 'Tomorrow';
+        } else if (isPassed) {
+            dateLabel = `${Math.abs(birthday.daysUntil)} day${Math.abs(birthday.daysUntil) > 1 ? 's' : ''} ago`;
+        } else {
+            const options = { weekday: 'short', month: 'short', day: 'numeric' };
+            dateLabel = birthday.birthdayDate.toLocaleDateString('en-US', options);
+        }
+
+        const sendBtn = isPassed ? '' :
+            `<div class="calendar-birthday-send" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(birthday.name)}', '${escapeHtml(birthday.phoneNumber)}')" title="Send birthday message">💬</div>`;
+
+        item.innerHTML = `
+            <div class="calendar-birthday-info">
+                <span class="calendar-birthday-name">${escapeHtml(birthday.name)}</span>
+                <span class="calendar-birthday-date">${dateLabel}</span>
+            </div>
+            ${sendBtn}
+        `;
+
+        list.appendChild(item);
+    });
+
+    panel.style.display = 'block';
 }
 
 // Create calendar day cell
