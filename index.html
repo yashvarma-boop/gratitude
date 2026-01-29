@@ -371,13 +371,9 @@
 
                         <div class="setting-item">
                             <label class="setting-label">Send via</label>
-                            <div class="channel-toggle">
-                                <button id="channelSms" class="channel-btn active" onclick="selectChannel('sms')">
-                                    📱 SMS
-                                </button>
-                                <button id="channelWhatsapp" class="channel-btn" onclick="selectChannel('whatsapp')">
-                                    💬 WhatsApp
-                                </button>
+                            <div id="channelToggle" style="display:flex;border-radius:12px;overflow:hidden;border:2px solid #9BAF95;width:100%;margin-top:6px;">
+                                <button type="button" id="channelSms" style="flex:1;padding:14px 16px;border:none;background:#9BAF95;color:#ffffff;font-size:1rem;font-weight:600;cursor:pointer;" onclick="selectChannel('sms')">📱 SMS</button>
+                                <button type="button" id="channelWhatsapp" style="flex:1;padding:14px 16px;border:none;background:#f0f0f0;color:#5A5A5A;font-size:1rem;font-weight:600;cursor:pointer;" onclick="selectChannel('whatsapp')">💬 WhatsApp</button>
                             </div>
                         </div>
 
