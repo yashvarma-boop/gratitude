@@ -2256,12 +2256,20 @@ function selectChannel(channel) {
 
     if (channel === 'whatsapp') {
         smsBtn.classList.remove('active');
+        smsBtn.style.background = '#f5f5f5';
+        smsBtn.style.color = '#5A5A5A';
         whatsappBtn.classList.add('active');
+        whatsappBtn.style.background = '#9BAF95';
+        whatsappBtn.style.color = '#ffffff';
         whatsappNote.style.display = 'block';
         sendBtn.textContent = 'Send WhatsApp 💌';
     } else {
         whatsappBtn.classList.remove('active');
+        whatsappBtn.style.background = '#f5f5f5';
+        whatsappBtn.style.color = '#5A5A5A';
         smsBtn.classList.add('active');
+        smsBtn.style.background = '#9BAF95';
+        smsBtn.style.color = '#ffffff';
         whatsappNote.style.display = 'none';
         sendBtn.textContent = 'Send SMS 💌';
     }
