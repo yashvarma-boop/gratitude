@@ -369,6 +369,14 @@
                     <div class="settings-card">
                         <h2 class="settings-title">Send Gratitude</h2>
 
+                        <div style="margin-bottom:24px;">
+                            <p style="display:block;font-size:0.9375rem;font-weight:600;color:#2D2D2D;margin-bottom:8px;">Send via</p>
+                            <div id="channelToggle" style="display:flex !important;visibility:visible !important;opacity:1 !important;border-radius:12px;overflow:hidden;border:3px solid #9BAF95;width:100%;height:50px;">
+                                <div id="channelSms" onclick="selectChannel('sms')" style="display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#9BAF95;color:#ffffff;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;">📱 SMS</div>
+                                <div id="channelWhatsapp" onclick="selectChannel('whatsapp')" style="display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#f0f0f0;color:#5A5A5A;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;">💬 WhatsApp</div>
+                            </div>
+                        </div>
+
                         <div class="setting-item">
                             <label class="setting-label">Select Contact</label>
                             <select id="recipientSelect" class="setting-input" onchange="handleRecipientChange()">
@@ -387,7 +395,11 @@
                             <div class="char-count"><span id="messageCharCount">0</span>/500</div>
                         </div>
 
-                        <button class="primary-btn" onclick="sendGratitudeMessage()">Send Message 💌</button>
+                        <div id="whatsappNote" class="channel-note" style="display: none;">
+                            Note: The recipient must have WhatsApp and may need to message your WhatsApp number first (Twilio requirement).
+                        </div>
+
+                        <button class="primary-btn" id="sendMessageBtn" onclick="sendGratitudeMessage()">Send SMS 💌</button>
                         <button class="secondary-btn" onclick="goHome()">Cancel</button>
                     </div>
                 </div>

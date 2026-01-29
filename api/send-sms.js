@@ -1,4 +1,4 @@
-// Serverless function to send SMS using Twilio
+// Serverless function to send SMS or WhatsApp messages using Twilio
 // This file can be deployed to Vercel, Netlify, or any serverless platform
 
 const twilio = require('twilio');
@@ -8,6 +8,7 @@ const twilio = require('twilio');
 const accountSid = process.env.TWILIO_ACCOUNT_SID;
 const authToken = process.env.TWILIO_AUTH_TOKEN;
 const twilioPhoneNumber = process.env.TWILIO_PHONE_NUMBER;
+const twilioWhatsAppNumber = process.env.TWILIO_WHATSAPP_NUMBER || 'whatsapp:+14155238886';
 
 module.exports = async (req, res) => {
     // Enable CORS
@@ -26,7 +27,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { to, message } = req.body;
+        const { to, message, channel } = req.body;
 
         // Validate input
         if (!to || !message) {
@@ -36,7 +37,7 @@ module.exports = async (req, res) => {
         // Validate environment variables
         if (!accountSid || !authToken || !twilioPhoneNumber) {
             console.error('Missing Twilio credentials');
-            return res.status(500).json({ error: 'SMS service is not configured' });
+            return res.status(500).json({ error: 'Messaging service is not configured' });
         }
 
         // Initialize Twilio client
@@ -49,23 +50,29 @@ module.exports = async (req, res) => {
             formattedPhone = `+1${formattedPhone.replace(/\D/g, '')}`;
         }
 
-        // Send SMS
-        const twilioMessage = await client.messages.create({
-            body: message,
-            from: twilioPhoneNumber,
-            to: formattedPhone
-        });
+        const isWhatsApp = channel === 'whatsapp';
 
-        console.log('SMS sent successfully:', twilioMessage.sid);
+        // Build message options
+        const messageOptions = {
+            body: message,
+            to: isWhatsApp ? `whatsapp:${formattedPhone}` : formattedPhone,
+            from: isWhatsApp ? twilioWhatsAppNumber : twilioPhoneNumber
+        };
+
+        // Send message
+        const twilioMessage = await client.messages.create(messageOptions);
+
+        console.log(`${isWhatsApp ? 'WhatsApp' : 'SMS'} sent successfully:`, twilioMessage.sid);
 
         return res.status(200).json({
             success: true,
             messageSid: twilioMessage.sid,
-            status: twilioMessage.status
+            status: twilioMessage.status,
+            channel: isWhatsApp ? 'whatsapp' : 'sms'
         });
 
     } catch (error) {
-        console.error('Error sending SMS:', error);
+        console.error('Error sending message:', error);
 
         // Return user-friendly error message
         let errorMessage = 'Failed to send message';
@@ -73,6 +80,10 @@ module.exports = async (req, res) => {
             errorMessage = 'Invalid phone number';
         } else if (error.code === 21608) {
             errorMessage = 'Phone number is not verified (Twilio trial account)';
+        } else if (error.code === 63007) {
+            errorMessage = 'WhatsApp: Recipient has not opted in. They must message your WhatsApp number first.';
+        } else if (error.code === 63016) {
+            errorMessage = 'WhatsApp: Message failed to send. The recipient may not have WhatsApp.';
         } else if (error.message) {
             errorMessage = error.message;
         }
