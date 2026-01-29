@@ -2254,24 +2254,21 @@ function selectChannel(channel) {
     const whatsappNote = document.getElementById('whatsappNote');
     const sendBtn = document.getElementById('sendMessageBtn');
 
+    if (!smsBtn || !whatsappBtn) {
+        console.error('Channel toggle buttons not found!');
+        return;
+    }
+
     if (channel === 'whatsapp') {
-        smsBtn.classList.remove('active');
-        smsBtn.style.background = '#f5f5f5';
-        smsBtn.style.color = '#5A5A5A';
-        whatsappBtn.classList.add('active');
-        whatsappBtn.style.background = '#9BAF95';
-        whatsappBtn.style.color = '#ffffff';
-        whatsappNote.style.display = 'block';
-        sendBtn.textContent = 'Send WhatsApp 💌';
+        smsBtn.style.cssText = 'display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#f0f0f0;color:#5A5A5A;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;';
+        whatsappBtn.style.cssText = 'display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#9BAF95;color:#ffffff;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;';
+        if (whatsappNote) whatsappNote.style.display = 'block';
+        if (sendBtn) sendBtn.textContent = 'Send WhatsApp 💌';
     } else {
-        whatsappBtn.classList.remove('active');
-        whatsappBtn.style.background = '#f5f5f5';
-        whatsappBtn.style.color = '#5A5A5A';
-        smsBtn.classList.add('active');
-        smsBtn.style.background = '#9BAF95';
-        smsBtn.style.color = '#ffffff';
-        whatsappNote.style.display = 'none';
-        sendBtn.textContent = 'Send SMS 💌';
+        smsBtn.style.cssText = 'display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#9BAF95;color:#ffffff;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;';
+        whatsappBtn.style.cssText = 'display:flex !important;visibility:visible !important;flex:1;align-items:center;justify-content:center;background:#f0f0f0;color:#5A5A5A;font-size:1rem;font-weight:700;cursor:pointer;user-select:none;';
+        if (whatsappNote) whatsappNote.style.display = 'none';
+        if (sendBtn) sendBtn.textContent = 'Send SMS 💌';
     }
 }
 
