@@ -993,6 +993,22 @@ async function showDetail(sessionId) {
         detailContent.appendChild(birthdayBanner);
     }
 
+    // Day navigation arrows
+    const navRow = document.createElement('div');
+    navRow.className = 'detail-day-nav';
+
+    const prevBtn = document.createElement('button');
+    prevBtn.className = 'detail-nav-btn';
+    prevBtn.innerHTML = '&#9664;';
+    prevBtn.title = 'Previous day';
+    prevBtn.onclick = () => navigateDetailDay(session.sessionDate, -1);
+
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'detail-nav-btn';
+    nextBtn.innerHTML = '&#9654;';
+    nextBtn.title = 'Next day';
+    nextBtn.onclick = () => navigateDetailDay(session.sessionDate, 1);
+
     // Create header with date
     const headerDiv = document.createElement('div');
     headerDiv.className = 'detail-header';
@@ -1003,7 +1019,12 @@ async function showDetail(sessionId) {
     const dateHeader = document.createElement('div');
     dateHeader.className = 'detail-date';
     dateHeader.textContent = dateString;
-    headerDiv.appendChild(dateHeader);
+
+    navRow.appendChild(prevBtn);
+    navRow.appendChild(dateHeader);
+    navRow.appendChild(nextBtn);
+
+    headerDiv.appendChild(navRow);
 
     const subtitle = document.createElement('div');
     subtitle.className = 'detail-subtitle';
@@ -1634,6 +1655,7 @@ async function openCalendarDate(dateStr, birthdays = []) {
                     <line x1="3" y1="10" x2="21" y2="10"/>
                 </svg>
                 <p>No entry for this date</p>
+                <button class="primary-btn" onclick="openEntryForDate('${dateStr}')">Add Entry +</button>
             </div>
         `;
     }
@@ -1749,14 +1771,50 @@ function renderCalendarDetailPane(session, birthdays = []) {
 
     detailContent.appendChild(itemsContainer);
 
-    // View full button
+    // Action buttons row
+    const actionRow = document.createElement('div');
+    actionRow.className = 'calendar-detail-actions';
+
     const viewFullBtn = document.createElement('button');
     viewFullBtn.className = 'primary-btn';
     viewFullBtn.textContent = 'View Full Entry';
     viewFullBtn.onclick = () => showDetail(session.id);
-    detailContent.appendChild(viewFullBtn);
+    actionRow.appendChild(viewFullBtn);
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'secondary-btn';
+    editBtn.textContent = 'Edit Entry';
+    editBtn.onclick = () => openEntryForDate(session.sessionDate);
+    actionRow.appendChild(editBtn);
+
+    detailContent.appendChild(actionRow);
 
     detailPane.appendChild(detailContent);
+}
+
+// Open entry form for a specific date (from calendar view)
+function openEntryForDate(dateStr) {
+    currentEntryDate = new Date(dateStr);
+    clearForm();
+    updateDateDisplay();
+    loadEntryForDate(currentEntryDate);
+    initializeSuggestions();
+    showScreen('entry');
+}
+
+// Navigate to adjacent day from detail view
+async function navigateDetailDay(currentDateStr, offset) {
+    const date = new Date(currentDateStr);
+    date.setDate(date.getDate() + offset);
+    const targetDateStr = formatDate(date);
+    const session = await db.getSessionByDate(targetDateStr);
+
+    if (session) {
+        showDetail(session.id);
+    } else {
+        // No entry for that day — open the entry form so user can create one
+        openEntryForDate(targetDateStr);
+    }
 }
 
 // Navigate to previous month
