@@ -963,7 +963,7 @@ async function showDetail(sessionId) {
     detailContent.innerHTML = '';
 
     // Check for birthdays on this date
-    const date = new Date(session.sessionDate);
+    const date = new Date(session.sessionDate + 'T00:00:00');
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     const birthdayKey = `${month}-${day}`;
@@ -1691,7 +1691,7 @@ function renderCalendarDetailPane(session, birthdays = []) {
     }
 
     // Date header
-    const date = new Date(session.sessionDate);
+    const date = new Date(session.sessionDate + 'T00:00:00');
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
     const dateString = date.toLocaleDateString('en-US', dateOptions);
 
@@ -1794,7 +1794,9 @@ function renderCalendarDetailPane(session, birthdays = []) {
 
 // Open entry form for a specific date (from calendar view)
 function openEntryForDate(dateStr) {
-    currentEntryDate = new Date(dateStr);
+    currentEntryDate = new Date(dateStr + 'T00:00:00');
+    isEditMode = false;
+    editingSessionId = null;
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
@@ -1804,7 +1806,7 @@ function openEntryForDate(dateStr) {
 
 // Navigate to adjacent day from detail view
 async function navigateDetailDay(currentDateStr, offset) {
-    const date = new Date(currentDateStr);
+    const date = new Date(currentDateStr + 'T00:00:00');
     date.setDate(date.getDate() + offset);
     const targetDateStr = formatDate(date);
     const session = await db.getSessionByDate(targetDateStr);
