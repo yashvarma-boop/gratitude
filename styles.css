@@ -713,16 +713,7 @@ header {
 /* ========================================
    HISTORY SCREEN
    ======================================== */
-.history-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--spacing-xl);
-    gap: var(--spacing-md);
-    flex-wrap: wrap;
-}
-
-.filter-buttons {
+.view-switcher {
     display: flex;
     gap: 4px;
     background: var(--bg-card);
@@ -730,67 +721,35 @@ header {
     padding: 4px;
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-card);
+    margin: 0 auto;
 }
 
-.filter-btn {
-    padding: var(--spacing-xs) var(--spacing-lg);
+.view-switch-btn {
+    padding: var(--spacing-xs) var(--spacing-xl);
     border: none;
     background: transparent;
     color: var(--text-secondary);
-    font-size: 0.875rem;
+    font-size: 0.9375rem;
     font-weight: 500;
     border-radius: calc(var(--radius-md) - 4px);
     cursor: pointer;
     transition: all var(--transition);
 }
 
-.filter-btn.active {
+.view-switch-btn.active {
     background: white;
     color: var(--text-primary);
     box-shadow: var(--shadow-card);
 }
 
-.filter-btn:hover:not(.active) {
+.view-switch-btn:hover:not(.active) {
     background: rgba(255, 255, 255, 0.5);
 }
 
-.view-toggle {
+.history-header {
     display: flex;
-    gap: 4px;
-    background: var(--bg-card);
-    backdrop-filter: blur(10px);
-    padding: 4px;
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-card);
-}
-
-.view-toggle-btn {
-    width: 40px;
-    height: 40px;
-    border: none;
-    background: transparent;
-    border-radius: calc(var(--radius-md) - 4px);
-    cursor: pointer;
-    transition: all var(--transition);
-    display: flex;
-    align-items: center;
     justify-content: center;
-    color: var(--text-secondary);
-}
-
-.view-toggle-btn.active {
-    background: white;
-    color: var(--accent-sage);
-    box-shadow: var(--shadow-card);
-}
-
-.view-toggle-btn:hover:not(.active) {
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.view-toggle-btn svg {
-    width: 20px;
-    height: 20px;
+    margin-bottom: var(--spacing-lg);
 }
 
 .history-view {
@@ -799,6 +758,247 @@ header {
 
 .history-view.active {
     display: block;
+}
+
+/* ========== WEEK VIEW ========== */
+
+.week-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.week-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-xs);
+}
+
+.week-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.week-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.week-day-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition);
+}
+
+.week-day-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-soft);
+}
+
+.week-day-card.today {
+    border-left: 4px solid var(--accent-sage);
+}
+
+.week-day-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.week-day-name {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+}
+
+.week-day-num {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+}
+
+.week-birthday {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    padding: var(--spacing-xs) 0;
+}
+
+.week-entry-content {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.week-entry-item {
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+    padding: var(--spacing-xs) 0;
+}
+
+.week-item-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    background: var(--accent-sage);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    margin-right: var(--spacing-xs);
+}
+
+.week-empty {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-style: italic;
+    padding: var(--spacing-xs) 0;
+}
+
+.week-add-btn {
+    border: 1px dashed rgba(0, 0, 0, 0.15);
+    background: transparent;
+    color: var(--accent-sage);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: var(--spacing-xs) var(--spacing-md);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+    margin-top: var(--spacing-xs);
+}
+
+.week-add-btn:hover {
+    background: var(--accent-sage);
+    color: white;
+    border-color: var(--accent-sage);
+}
+
+/* ========== YEAR VIEW ========== */
+
+.year-layout {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.year-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--spacing-xs);
+}
+
+.year-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.year-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+}
+
+@media (max-width: 768px) {
+    .year-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .year-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.year-month-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-card);
+}
+
+.year-month-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-sm);
+    text-align: center;
+}
+
+.year-month-title:hover {
+    color: var(--accent-sage);
+}
+
+.year-mini-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+}
+
+.year-mini-header {
+    text-align: center;
+    font-size: 0.5625rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    padding: 2px 0;
+}
+
+.year-mini-day {
+    text-align: center;
+    font-size: 0.625rem;
+    padding: 3px 1px;
+    border-radius: 2px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: background 0.15s;
+}
+
+.year-mini-day:hover:not(.empty) {
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.year-mini-day.empty {
+    cursor: default;
+}
+
+.year-mini-day.has-entry {
+    background: var(--accent-sage);
+    color: white;
+    font-weight: 600;
+    border-radius: 3px;
+}
+
+.year-mini-day.today {
+    outline: 1.5px solid var(--accent-sage);
+    font-weight: 700;
+}
+
+.year-mini-day.today.has-entry {
+    outline-color: white;
+    outline-offset: 1px;
+}
+
+.year-month-count {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-xs);
+    border-top: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 /* ========================================
