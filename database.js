@@ -2,7 +2,7 @@
 class GratitudeDB {
     constructor() {
         this.dbName = 'GratitudeDB';
-        this.version = 3;
+        this.version = 4;
         this.db = null;
     }
 
@@ -19,12 +19,15 @@ class GratitudeDB {
 
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
+                const transaction = event.target.transaction;
 
                 // Create sessions store
                 if (!db.objectStoreNames.contains('sessions')) {
                     const sessionStore = db.createObjectStore('sessions', { keyPath: 'id', autoIncrement: true });
-                    sessionStore.createIndex('sessionDate', 'sessionDate', { unique: true });
+                    sessionStore.createIndex('sessionDate', 'sessionDate', { unique: false });
                     sessionStore.createIndex('createdAt', 'createdAt', { unique: false });
+                    sessionStore.createIndex('type', 'type', { unique: false });
+                    sessionStore.createIndex('typeDate', ['type', 'sessionDate'], { unique: true });
                 }
 
                 // Create items store
@@ -50,17 +53,50 @@ class GratitudeDB {
 
                 // Add birthday index to existing contacts store (for upgrade from v2 to v3)
                 if (event.oldVersion < 3 && db.objectStoreNames.contains('contacts')) {
-                    const contactStore = event.target.transaction.objectStore('contacts');
+                    const contactStore = transaction.objectStore('contacts');
                     if (!contactStore.indexNames.contains('birthday')) {
                         contactStore.createIndex('birthday', 'birthday', { unique: false });
                     }
+                }
+
+                // Upgrade from v3 to v4: add type field and indexes to sessions
+                if (event.oldVersion >= 1 && event.oldVersion < 4 && db.objectStoreNames.contains('sessions')) {
+                    const sessionStore = transaction.objectStore('sessions');
+
+                    // Add type and typeDate indexes
+                    if (!sessionStore.indexNames.contains('type')) {
+                        sessionStore.createIndex('type', 'type', { unique: false });
+                    }
+                    if (!sessionStore.indexNames.contains('typeDate')) {
+                        sessionStore.createIndex('typeDate', ['type', 'sessionDate'], { unique: true });
+                    }
+
+                    // Drop the old unique sessionDate index and recreate as non-unique
+                    if (sessionStore.indexNames.contains('sessionDate')) {
+                        sessionStore.deleteIndex('sessionDate');
+                        sessionStore.createIndex('sessionDate', 'sessionDate', { unique: false });
+                    }
+
+                    // Migrate existing sessions: add type='grateful' to all
+                    const cursorRequest = sessionStore.openCursor();
+                    cursorRequest.onsuccess = (e) => {
+                        const cursor = e.target.result;
+                        if (cursor) {
+                            const session = cursor.value;
+                            if (!session.type) {
+                                session.type = 'grateful';
+                                cursor.update(session);
+                            }
+                            cursor.continue();
+                        }
+                    };
                 }
             };
         });
     }
 
-    // Create a new gratitude session
-    async createSession(sessionDate, items) {
+    // Create a new session (grateful or better)
+    async createSession(sessionDate, items, type = 'grateful') {
         const transaction = this.db.transaction(['sessions', 'items', 'media'], 'readwrite');
         const sessionStore = transaction.objectStore('sessions');
         const itemStore = transaction.objectStore('items');
@@ -69,6 +105,7 @@ class GratitudeDB {
         // Create session
         const session = {
             sessionDate,
+            type,
             createdAt: Date.now(),
             updatedAt: Date.now()
         };
@@ -125,8 +162,8 @@ class GratitudeDB {
         });
     }
 
-    // Get all sessions
-    async getAllSessions() {
+    // Get all sessions, optionally filtered by type
+    async getAllSessions(type = null) {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['sessions'], 'readonly');
             const store = transaction.objectStore('sessions');
@@ -137,7 +174,11 @@ class GratitudeDB {
             request.onsuccess = (event) => {
                 const cursor = event.target.result;
                 if (cursor) {
-                    sessions.push(cursor.value);
+                    const session = cursor.value;
+                    // Filter by type if specified; treat sessions without type as 'grateful'
+                    if (type === null || (session.type || 'grateful') === type) {
+                        sessions.push(session);
+                    }
                     cursor.continue();
                 } else {
                     resolve(sessions);
@@ -148,13 +189,13 @@ class GratitudeDB {
         });
     }
 
-    // Get session by date
-    async getSessionByDate(sessionDate) {
+    // Get session by date and type
+    async getSessionByDate(sessionDate, type = 'grateful') {
         return new Promise((resolve, reject) => {
             const transaction = this.db.transaction(['sessions'], 'readonly');
             const store = transaction.objectStore('sessions');
-            const index = store.index('sessionDate');
-            const request = index.get(sessionDate);
+            const index = store.index('typeDate');
+            const request = index.get([type, sessionDate]);
 
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
