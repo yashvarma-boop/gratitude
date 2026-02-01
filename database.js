@@ -16,6 +16,8 @@ class GratitudeDB {
 
     // Helper: get user-scoped collection reference
     _col(name) {
+        if (!this.uid) throw new Error('Database not initialized - no user ID');
+        if (!firestore) throw new Error('Firestore not available');
         return firestore.collection('users').doc(this.uid).collection(name);
     }
 

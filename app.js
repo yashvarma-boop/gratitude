@@ -922,7 +922,7 @@ async function saveEntry() {
         }
     } catch (error) {
         console.error('Save error:', error);
-        showToast('Failed to save entry');
+        showToast('Save failed: ' + (error.message || error.code || 'Unknown error'));
     }
 }
 
