@@ -6,8 +6,10 @@ let currentMediaGallery = [];
 let currentMediaIndex = 0;
 let isEditMode = false;
 let editingSessionId = null;
-let currentView = 'list';
+let currentView = 'month';
 let calendarDate = new Date();
+let weekDate = new Date();
+let yearDate = new Date();
 let cameraStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -605,7 +607,10 @@ function showScreen(screenName) {
             shareBtn.style.display = 'none';
             sendGratitudeBtn.style.display = 'flex';
             addressBookBtn.style.display = 'flex';
-            loadHistory();
+            // Render the currently active view
+            if (currentView === 'week') renderWeekView();
+            else if (currentView === 'year') renderYearView();
+            else renderCalendar();
             break;
         case 'settings':
             document.getElementById('settingsScreen').classList.add('active');
@@ -1180,35 +1185,55 @@ async function deleteEntry() {
     }
 }
 
-// Filter entries
-function filterEntries(rangeType) {
-    currentFilter = rangeType;
+// Switch between week, month, year view modes
+function switchViewMode(mode) {
+    currentView = mode;
 
-    // Update active filter button
-    document.querySelectorAll('.filter-btn').forEach(btn => {
+    // Update active button
+    document.querySelectorAll('.view-switch-btn').forEach(btn => {
         btn.classList.remove('active');
     });
-    event.target.classList.add('active');
+    if (event && event.target) {
+        event.target.classList.add('active');
+    } else {
+        document.querySelectorAll('.view-switch-btn').forEach(btn => {
+            if (btn.textContent.trim().toLowerCase() === mode) btn.classList.add('active');
+        });
+    }
 
-    loadHistory();
-}
+    // Hide all views
+    document.querySelectorAll('.history-view').forEach(v => v.classList.remove('active'));
 
-// Switch between list and calendar view
-function switchView(viewType) {
-    // Update active view toggle button
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    event.target.closest('.view-toggle-btn').classList.add('active');
-
-    // Show/hide views
-    if (viewType === 'list') {
-        document.getElementById('listView').classList.add('active');
-        document.getElementById('calendarView').classList.remove('active');
-    } else if (viewType === 'calendar') {
-        document.getElementById('listView').classList.remove('active');
+    // Show selected view
+    if (mode === 'week') {
+        document.getElementById('weekView').classList.add('active');
+        renderWeekView();
+    } else if (mode === 'month') {
         document.getElementById('calendarView').classList.add('active');
         renderCalendar();
+    } else if (mode === 'year') {
+        document.getElementById('yearView').classList.add('active');
+        renderYearView();
+    }
+}
+
+// Programmatic switch (no event)
+function switchToViewMode(mode) {
+    currentView = mode;
+    document.querySelectorAll('.view-switch-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.textContent.trim().toLowerCase() === mode) btn.classList.add('active');
+    });
+    document.querySelectorAll('.history-view').forEach(v => v.classList.remove('active'));
+    if (mode === 'week') {
+        document.getElementById('weekView').classList.add('active');
+        renderWeekView();
+    } else if (mode === 'month') {
+        document.getElementById('calendarView').classList.add('active');
+        renderCalendar();
+    } else if (mode === 'year') {
+        document.getElementById('yearView').classList.add('active');
+        renderYearView();
     }
 }
 
@@ -1338,43 +1363,237 @@ function showToast(message) {
 
 // ========== CALENDAR VIEW ==========
 
-// Switch between list and calendar views
-function switchView(viewType) {
-    currentView = viewType;
-
-    // Update toggle buttons
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
-        btn.classList.remove('active');
-    });
-    if (event && event.target) {
-        event.target.closest('.view-toggle-btn').classList.add('active');
-    }
-
-    switchToView(viewType);
-}
-
-// Programmatic view switch (no event required)
+// Legacy alias for goHome
 function switchToCalendarView() {
-    currentView = 'calendar';
-
-    // Update toggle buttons
-    const toggleBtns = document.querySelectorAll('.view-toggle-btn');
-    toggleBtns.forEach(btn => btn.classList.remove('active'));
-    if (toggleBtns.length > 1) toggleBtns[1].classList.add('active');
-
-    switchToView('calendar');
+    switchToViewMode('month');
 }
 
-function switchToView(viewType) {
-    // Show/hide views
-    if (viewType === 'list') {
-        document.getElementById('listView').classList.add('active');
-        document.getElementById('calendarView').classList.remove('active');
-    } else {
-        document.getElementById('listView').classList.remove('active');
-        document.getElementById('calendarView').classList.add('active');
-        renderCalendar();
+// ========== WEEK VIEW ==========
+
+function getWeekStart(date) {
+    const d = new Date(date);
+    d.setDate(d.getDate() - d.getDay());
+    d.setHours(0, 0, 0, 0);
+    return d;
+}
+
+async function renderWeekView() {
+    const weekStart = getWeekStart(weekDate);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    // Update title
+    const startStr = weekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const endStr = weekEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    document.getElementById('weekTitle').textContent = `${startStr} - ${endStr}`;
+
+    // Get all sessions
+    const allSessions = await db.getAllSessions();
+    const sessionMap = {};
+    for (const session of allSessions) {
+        sessionMap[session.sessionDate] = session;
     }
+
+    // Get birthdays
+    const allContacts = await db.getAllContacts();
+    const birthdayMap = {};
+    allContacts.forEach(contact => {
+        if (contact.birthday) {
+            if (!birthdayMap[contact.birthday]) birthdayMap[contact.birthday] = [];
+            birthdayMap[contact.birthday].push(contact);
+        }
+    });
+
+    const grid = document.getElementById('weekGrid');
+    grid.innerHTML = '';
+
+    const today = new Date();
+    const todayStr = formatDate(today);
+
+    for (let i = 0; i < 7; i++) {
+        const day = new Date(weekStart);
+        day.setDate(day.getDate() + i);
+        const dateStr = formatDate(day);
+        const isToday = dateStr === todayStr;
+
+        const dayCard = document.createElement('div');
+        dayCard.className = 'week-day-card' + (isToday ? ' today' : '');
+
+        // Day header
+        const dayHeader = document.createElement('div');
+        dayHeader.className = 'week-day-header';
+        const dayName = day.toLocaleDateString('en-US', { weekday: 'short' });
+        const dayNum = day.getDate();
+        const monthName = day.toLocaleDateString('en-US', { month: 'short' });
+        dayHeader.innerHTML = `<span class="week-day-name">${dayName}</span><span class="week-day-num">${monthName} ${dayNum}</span>`;
+        dayCard.appendChild(dayHeader);
+
+        // Birthday check
+        const mm = String(day.getMonth() + 1).padStart(2, '0');
+        const dd = String(day.getDate()).padStart(2, '0');
+        const bKey = `${mm}-${dd}`;
+        if (birthdayMap[bKey]) {
+            const bDiv = document.createElement('div');
+            bDiv.className = 'week-birthday';
+            bDiv.textContent = '🎂 ' + birthdayMap[bKey].map(c => c.name).join(', ');
+            dayCard.appendChild(bDiv);
+        }
+
+        // Entry content
+        const session = sessionMap[dateStr];
+        if (session) {
+            const details = await db.getSessionWithDetails(session.id);
+            const entryDiv = document.createElement('div');
+            entryDiv.className = 'week-entry-content';
+
+            details.items.forEach((item, idx) => {
+                if (item.textContent) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'week-entry-item';
+                    itemDiv.innerHTML = `<span class="week-item-num">${idx + 1}</span> ${escapeHtml(item.textContent)}`;
+                    entryDiv.appendChild(itemDiv);
+                }
+            });
+
+            dayCard.appendChild(entryDiv);
+
+            // Click to view detail
+            dayCard.style.cursor = 'pointer';
+            dayCard.onclick = () => showDetail(session.id);
+        } else {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.className = 'week-empty';
+            emptyDiv.textContent = 'No entry';
+            dayCard.appendChild(emptyDiv);
+
+            // Click to add entry
+            const addBtn = document.createElement('button');
+            addBtn.className = 'week-add-btn';
+            addBtn.textContent = '+ Add';
+            addBtn.onclick = (e) => { e.stopPropagation(); openEntryForDate(dateStr); };
+            dayCard.appendChild(addBtn);
+        }
+
+        grid.appendChild(dayCard);
+    }
+}
+
+function previousWeek() {
+    weekDate.setDate(weekDate.getDate() - 7);
+    renderWeekView();
+}
+
+function nextWeek() {
+    weekDate.setDate(weekDate.getDate() + 7);
+    renderWeekView();
+}
+
+// ========== YEAR VIEW ==========
+
+async function renderYearView() {
+    const year = yearDate.getFullYear();
+    document.getElementById('yearTitle').textContent = year;
+
+    // Get all sessions for this year
+    const allSessions = await db.getAllSessions();
+    const sessionDates = new Set(allSessions.map(s => s.sessionDate));
+
+    const grid = document.getElementById('yearGrid');
+    grid.innerHTML = '';
+
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    const today = new Date();
+    const todayStr = formatDate(today);
+
+    for (let month = 0; month < 12; month++) {
+        const monthCard = document.createElement('div');
+        monthCard.className = 'year-month-card';
+
+        // Month title - clickable to go to month view
+        const monthTitle = document.createElement('div');
+        monthTitle.className = 'year-month-title';
+        monthTitle.textContent = monthNames[month];
+        monthTitle.style.cursor = 'pointer';
+        monthTitle.onclick = () => {
+            calendarDate = new Date(year, month, 1);
+            switchToViewMode('month');
+        };
+        monthCard.appendChild(monthTitle);
+
+        // Mini day headers
+        const dayHeaders = document.createElement('div');
+        dayHeaders.className = 'year-mini-grid';
+        ['S', 'M', 'T', 'W', 'T', 'F', 'S'].forEach(d => {
+            const h = document.createElement('div');
+            h.className = 'year-mini-header';
+            h.textContent = d;
+            dayHeaders.appendChild(h);
+        });
+        monthCard.appendChild(dayHeaders);
+
+        // Mini calendar grid
+        const miniGrid = document.createElement('div');
+        miniGrid.className = 'year-mini-grid';
+
+        const firstDay = new Date(year, month, 1);
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+        const startDay = firstDay.getDay();
+
+        // Empty cells before first day
+        for (let e = 0; e < startDay; e++) {
+            const empty = document.createElement('div');
+            empty.className = 'year-mini-day empty';
+            miniGrid.appendChild(empty);
+        }
+
+        // Day cells
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = formatDate(new Date(year, month, day));
+            const hasEntry = sessionDates.has(dateStr);
+            const isToday = dateStr === todayStr;
+
+            const dayEl = document.createElement('div');
+            dayEl.className = 'year-mini-day' +
+                (hasEntry ? ' has-entry' : '') +
+                (isToday ? ' today' : '');
+            dayEl.textContent = day;
+            dayEl.title = dateStr;
+            dayEl.onclick = () => {
+                calendarDate = new Date(year, month, 1);
+                switchToViewMode('month');
+                // Small delay to let calendar render, then open the date
+                setTimeout(() => openCalendarDate(dateStr, []), 100);
+            };
+            miniGrid.appendChild(dayEl);
+        }
+
+        monthCard.appendChild(miniGrid);
+
+        // Entry count for month
+        let monthEntryCount = 0;
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = formatDate(new Date(year, month, day));
+            if (sessionDates.has(dateStr)) monthEntryCount++;
+        }
+        const countDiv = document.createElement('div');
+        countDiv.className = 'year-month-count';
+        countDiv.textContent = monthEntryCount > 0 ? `${monthEntryCount} entr${monthEntryCount === 1 ? 'y' : 'ies'}` : 'No entries';
+        monthCard.appendChild(countDiv);
+
+        grid.appendChild(monthCard);
+    }
+}
+
+function previousYear() {
+    yearDate.setFullYear(yearDate.getFullYear() - 1);
+    renderYearView();
+}
+
+function nextYear() {
+    yearDate.setFullYear(yearDate.getFullYear() + 1);
+    renderYearView();
 }
 
 // Render calendar for current month
