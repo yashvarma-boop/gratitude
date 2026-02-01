@@ -1,6 +1,7 @@
 // Firestore Database Service for Flourishly
 // Drop-in replacement for the old IndexedDB GratitudeDB class
 // All data is scoped under /users/{uid}/ in Firestore
+// NOTE: All sorting is done client-side to avoid needing Firestore composite indexes
 
 class GratitudeDB {
     constructor() {
@@ -63,58 +64,81 @@ class GratitudeDB {
     }
 
     // Get all sessions, optionally filtered by type
+    // Sorting done client-side to avoid composite index requirement
     async getAllSessions(type = null) {
-        let query = this._col('sessions');
-        if (type) {
-            query = query.where('type', '==', type);
+        try {
+            let snapshot;
+            if (type) {
+                snapshot = await this._col('sessions').where('type', '==', type).get();
+            } else {
+                snapshot = await this._col('sessions').get();
+            }
+            const sessions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort by createdAt descending (newest first)
+            sessions.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            return sessions;
+        } catch (err) {
+            console.error('getAllSessions error:', err);
+            return [];
         }
-        query = query.orderBy('createdAt', 'desc');
-        const snapshot = await query.get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     }
 
     // Get session by date and type
     async getSessionByDate(sessionDate, type = 'grateful') {
-        const snapshot = await this._col('sessions')
-            .where('sessionDate', '==', sessionDate)
-            .where('type', '==', type)
-            .limit(1)
-            .get();
+        try {
+            // Use single where clause and filter client-side to avoid compound query issues
+            const snapshot = await this._col('sessions')
+                .where('sessionDate', '==', sessionDate)
+                .get();
 
-        if (snapshot.empty) return null;
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data() };
+            if (snapshot.empty) return null;
+            // Filter by type client-side
+            const match = snapshot.docs.find(doc => {
+                const data = doc.data();
+                return (data.type || 'grateful') === type;
+            });
+            if (!match) return null;
+            return { id: match.id, ...match.data() };
+        } catch (err) {
+            console.error('getSessionByDate error:', err);
+            return null;
+        }
     }
 
     // Get session with items and media
     async getSessionWithDetails(sessionId) {
-        const sessionDoc = await this._col('sessions').doc(sessionId).get();
-        if (!sessionDoc.exists) return null;
+        try {
+            const sessionDoc = await this._col('sessions').doc(sessionId).get();
+            if (!sessionDoc.exists) return null;
 
-        const session = { id: sessionDoc.id, ...sessionDoc.data() };
+            const session = { id: sessionDoc.id, ...sessionDoc.data() };
 
-        // Get items
-        const itemsSnapshot = await this._col('sessions').doc(sessionId)
-            .collection('items')
-            .orderBy('itemOrder')
-            .get();
-
-        const items = [];
-        for (const itemDoc of itemsSnapshot.docs) {
-            const item = { id: itemDoc.id, ...itemDoc.data() };
-
-            // Get media for this item
-            const mediaSnapshot = await this._col('sessions').doc(sessionId)
-                .collection('items').doc(itemDoc.id)
-                .collection('media')
+            // Get items (no orderBy to avoid index requirement, sort client-side)
+            const itemsSnapshot = await this._col('sessions').doc(sessionId)
+                .collection('items')
                 .get();
 
-            item.media = mediaSnapshot.docs.map(m => ({ id: m.id, ...m.data() }));
-            items.push(item);
-        }
+            const items = [];
+            for (const itemDoc of itemsSnapshot.docs) {
+                const item = { id: itemDoc.id, ...itemDoc.data() };
 
-        items.sort((a, b) => a.itemOrder - b.itemOrder);
-        return { ...session, items };
+                // Get media for this item
+                const mediaSnapshot = await this._col('sessions').doc(sessionId)
+                    .collection('items').doc(itemDoc.id)
+                    .collection('media')
+                    .get();
+
+                item.media = mediaSnapshot.docs.map(m => ({ id: m.id, ...m.data() }));
+                items.push(item);
+            }
+
+            // Sort items by order client-side
+            items.sort((a, b) => (a.itemOrder || 0) - (b.itemOrder || 0));
+            return { ...session, items };
+        } catch (err) {
+            console.error('getSessionWithDetails error:', err);
+            return null;
+        }
     }
 
     // Delete session and all subcollections
@@ -227,10 +251,17 @@ class GratitudeDB {
         return docRef.id;
     }
 
-    // Get all contacts
+    // Get all contacts (sorted client-side to avoid index requirement)
     async getAllContacts() {
-        const snapshot = await this._col('contacts').orderBy('name').get();
-        return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        try {
+            const snapshot = await this._col('contacts').get();
+            const contacts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            contacts.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+            return contacts;
+        } catch (err) {
+            console.error('getAllContacts error:', err);
+            return [];
+        }
     }
 
     // Get contact by ID
