@@ -21,46 +21,47 @@ class GratitudeDB {
 
     // Create a new session (grateful or better)
     async createSession(sessionDate, items, type = 'grateful') {
-        const sessionRef = this._col('sessions').doc();
-        const sessionData = {
-            sessionDate,
-            type,
-            createdAt: Date.now(),
-            updatedAt: Date.now()
-        };
-
-        const batch = firestore.batch();
-        batch.set(sessionRef, sessionData);
-
-        // Create items as subcollection
-        for (let i = 0; i < items.length; i++) {
-            const itemRef = sessionRef.collection('items').doc();
-            const itemData = {
-                itemOrder: i + 1,
-                textContent: items[i].text,
+        try {
+            // Write session document first
+            const sessionRef = this._col('sessions').doc();
+            await sessionRef.set({
+                sessionDate,
+                type,
                 createdAt: Date.now(),
                 updatedAt: Date.now()
-            };
-            batch.set(itemRef, itemData);
+            });
 
-            // Create media as subcollection of items
-            if (items[i].media && items[i].media.length > 0) {
-                for (const mediaItem of items[i].media) {
-                    const mediaRef = itemRef.collection('media').doc();
-                    batch.set(mediaRef, {
-                        mediaType: mediaItem.type,
-                        dataUrl: mediaItem.dataUrl,
-                        fileName: mediaItem.fileName || '',
-                        fileSize: mediaItem.fileSize || 0,
-                        mimeType: mediaItem.mimeType || '',
-                        createdAt: Date.now()
-                    });
+            // Write items sequentially to avoid batch/subcollection issues
+            for (let i = 0; i < items.length; i++) {
+                const itemRef = sessionRef.collection('items').doc();
+                await itemRef.set({
+                    itemOrder: i + 1,
+                    textContent: items[i].text,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now()
+                });
+
+                // Create media
+                if (items[i].media && items[i].media.length > 0) {
+                    for (const mediaItem of items[i].media) {
+                        const mediaRef = itemRef.collection('media').doc();
+                        await mediaRef.set({
+                            mediaType: mediaItem.type,
+                            dataUrl: mediaItem.dataUrl,
+                            fileName: mediaItem.fileName || '',
+                            fileSize: mediaItem.fileSize || 0,
+                            mimeType: mediaItem.mimeType || '',
+                            createdAt: Date.now()
+                        });
+                    }
                 }
             }
-        }
 
-        await batch.commit();
-        return sessionRef.id;
+            return sessionRef.id;
+        } catch (err) {
+            console.error('createSession error:', err);
+            throw err;
+        }
     }
 
     // Get all sessions, optionally filtered by type
@@ -181,11 +182,10 @@ class GratitudeDB {
         // Update session timestamp
         await sessionRef.update({ updatedAt: Date.now() });
 
-        // Create new items and media
-        const createBatch = firestore.batch();
+        // Create new items and media sequentially
         for (let i = 0; i < items.length; i++) {
             const itemRef = sessionRef.collection('items').doc();
-            createBatch.set(itemRef, {
+            await itemRef.set({
                 itemOrder: i + 1,
                 textContent: items[i].text,
                 createdAt: Date.now(),
@@ -195,7 +195,7 @@ class GratitudeDB {
             if (items[i].media && items[i].media.length > 0) {
                 for (const mediaItem of items[i].media) {
                     const mediaRef = itemRef.collection('media').doc();
-                    createBatch.set(mediaRef, {
+                    await mediaRef.set({
                         mediaType: mediaItem.type,
                         dataUrl: mediaItem.dataUrl,
                         fileName: mediaItem.fileName || '',
@@ -206,7 +206,6 @@ class GratitudeDB {
                 }
             }
         }
-        await createBatch.commit();
         return sessionId;
     }
 
