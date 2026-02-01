@@ -71,8 +71,19 @@ function setAuthLoading(button, loading) {
     }
 }
 
+// ========== FIREBASE CHECK ==========
+function checkFirebase() {
+    if (!auth) {
+        showAuthError('Firebase Authentication is not available. Please enable it in your Firebase Console under Authentication > Sign-in method.');
+        return false;
+    }
+    return true;
+}
+
 // ========== EMAIL/PASSWORD LOGIN ==========
 async function loginWithEmail() {
+    if (!checkFirebase()) return;
+
     const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const btn = document.querySelector('#loginForm .auth-submit-btn');
@@ -97,6 +108,8 @@ async function loginWithEmail() {
 
 // ========== EMAIL/PASSWORD REGISTER ==========
 async function registerWithEmail() {
+    if (!checkFirebase()) return;
+
     const name = document.getElementById('registerName').value.trim();
     const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
@@ -142,6 +155,8 @@ async function registerWithEmail() {
 
 // ========== GOOGLE SIGN-IN ==========
 async function loginWithGoogle() {
+    if (!checkFirebase()) return;
+
     clearAuthError();
     try {
         await auth.signInWithPopup(googleProvider);
