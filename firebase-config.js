@@ -19,8 +19,8 @@ import { getAnalytics } from "firebase/analytics";
 
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+//const app = initializeApp(firebaseConfig);
+//const analytics = getAnalytics(app);
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
 const firebaseConfig = {
@@ -34,11 +34,19 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+
+// Initialize Firebase Authentication and get a reference to the service
+export const auth = getAuth(app); // Export the auth instance
+//firebase.initializeApp(firebaseConfig);
 
 // Initialize services
-const auth = firebase.auth();
+//const auth = firebase.auth();
+
 const firestore = firebase.firestore();
+
 
 // Enable offline persistence for Firestore
 firestore.enablePersistence({ synchronizeTabs: true })
