@@ -145,32 +145,8 @@ if (savedColorScheme && savedColorScheme !== 'warm-peach') {
     document.documentElement.classList.add(`theme-${savedColorScheme}`);
 }
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', async () => {
-    await db.init();
-    currentEntryDate = new Date(); // Start on today
-    loadUserSettings();
-    updateWelcomeGreeting();
-    updateStreakDisplay(); // Initialize streak display
-    checkUpcomingBirthdays(); // Check for upcoming birthdays
-
-    // Initialize mode from localStorage
-    const savedMode = localStorage.getItem('currentMode') || 'grateful';
-    switchMode(savedMode);
-
-    // First visit shows welcome, subsequent visits go to calendar
-    const hasVisited = localStorage.getItem('hasVisitedBefore');
-    if (hasVisited) {
-        showScreen('history');
-        switchToCalendarView();
-    } else {
-        localStorage.setItem('hasVisitedBefore', 'true');
-        showScreen('welcome');
-    }
-
-    updateDateDisplay();
-    initializeSuggestions();
-});
+// App initialization is now handled by auth.js -> initializeApp()
+// after successful authentication. No DOMContentLoaded init needed here.
 
 // ========== BIRTHDAY REMINDERS ==========
 
@@ -395,13 +371,13 @@ function switchMode(mode) {
     // Update logo text
     const logoText = document.querySelector('.logo-text');
     if (logoText) {
-        logoText.textContent = mode === 'better' ? '1% Better' : 'Grateful';
+        logoText.textContent = 'Flourishly';
     }
 
     // Update page title
     document.title = mode === 'better'
-        ? '1% Better - Daily Growth Journal'
-        : 'Grateful - Your Daily Gratitude Journal';
+        ? 'Flourishly - 1% Better'
+        : 'Flourishly - Grateful';
 
     // Update welcome prompt
     const welcomePrompt = document.querySelector('.welcome-prompt');
