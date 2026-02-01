@@ -6,6 +6,7 @@ let currentMediaGallery = [];
 let currentMediaIndex = 0;
 let isEditMode = false;
 let editingSessionId = null;
+let currentMode = 'grateful'; // 'grateful' or 'better'
 let currentView = 'month';
 let calendarDate = new Date();
 let weekDate = new Date();
@@ -75,6 +76,60 @@ const gratitudeSuggestions = [
     "Simply being alive today"
 ];
 
+// 1% Better Suggestions - 50 improvement prompts
+const betterSuggestions = [
+    "A habit you want to build or strengthen",
+    "A conversation you've been putting off",
+    "One minute more of focus than yesterday",
+    "A skill you can practice today",
+    "Something you can organize or simplify",
+    "A healthier food choice you can make",
+    "A relationship you can invest more in",
+    "A fear you can take one small step toward facing",
+    "A book or article you can spend 10 minutes reading",
+    "A way to be more patient today",
+    "An extra glass of water you can drink",
+    "A negative thought pattern you can catch earlier",
+    "A task you can finish instead of leaving halfway",
+    "A way to listen more carefully in conversations",
+    "Something you can delegate or ask for help with",
+    "A few minutes of stretching or movement",
+    "A boundary you can set or reinforce",
+    "A piece of feedback you can act on",
+    "A morning routine step you can add",
+    "A distraction you can remove for an hour",
+    "A kind word you can say to yourself",
+    "A way to show up more prepared today",
+    "Something you've been procrastinating on",
+    "A way to save a little money today",
+    "A new perspective you can try on a problem",
+    "A time you can go to bed slightly earlier",
+    "A commitment you can follow through on",
+    "Something you can learn from a mistake",
+    "A way to reduce your screen time today",
+    "A small act of discipline you can practice",
+    "An email or message you can respond to promptly",
+    "A way to be more present in the moment",
+    "Something in your environment you can clean up",
+    "A deep breath you can take before reacting",
+    "A way to encourage someone else today",
+    "An assumption you can question",
+    "A creative solution you can try",
+    "Something you can practice saying no to",
+    "A healthier evening routine you can try",
+    "A way to be more consistent this week",
+    "A small promise to yourself you can keep",
+    "A way to express yourself more clearly",
+    "Something you can do with more intention",
+    "A way to show more gratitude to others",
+    "A physical challenge slightly beyond your comfort zone",
+    "A way to manage your energy better today",
+    "A question you can ask instead of assuming",
+    "A way to recover faster from a setback",
+    "Something you can do to invest in your future self",
+    "A tiny improvement to how you start your day"
+];
+
 let currentSuggestions = {
     1: null,
     2: null,
@@ -98,6 +153,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateWelcomeGreeting();
     updateStreakDisplay(); // Initialize streak display
     checkUpcomingBirthdays(); // Check for upcoming birthdays
+
+    // Initialize mode from localStorage
+    const savedMode = localStorage.getItem('currentMode') || 'grateful';
+    switchMode(savedMode);
 
     // First visit shows welcome, subsequent visits go to calendar
     const hasVisited = localStorage.getItem('hasVisitedBefore');
@@ -255,8 +314,9 @@ function getDaySuffix(day) {
 
 // Get a random suggestion that hasn't been used for this item
 function getRandomSuggestion(itemId, usedSuggestions = []) {
-    const available = gratitudeSuggestions.filter(s => !usedSuggestions.includes(s));
-    if (available.length === 0) return gratitudeSuggestions[Math.floor(Math.random() * gratitudeSuggestions.length)];
+    const pool = currentMode === 'better' ? betterSuggestions : gratitudeSuggestions;
+    const available = pool.filter(s => !usedSuggestions.includes(s));
+    if (available.length === 0) return pool[Math.floor(Math.random() * pool.length)];
     return available[Math.floor(Math.random() * available.length)];
 }
 
@@ -309,8 +369,72 @@ function goHome() {
 }
 
 function startJournaling() {
+    updateEntryFormForMode();
     loadEntryForDate(currentEntryDate);
     showScreen('entry');
+}
+
+// ========== MODE SWITCHING ==========
+
+function switchMode(mode) {
+    currentMode = mode;
+    localStorage.setItem('currentMode', mode);
+
+    // Update mode toggle buttons
+    document.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.mode-toggle-btn[data-mode="${mode}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Apply mode class to app container
+    const app = document.getElementById('app');
+    app.classList.remove('mode-grateful', 'mode-better');
+    app.classList.add(`mode-${mode}`);
+
+    // Update logo text
+    const logoText = document.querySelector('.logo-text');
+    if (logoText) {
+        logoText.textContent = mode === 'better' ? '1% Better' : 'Grateful';
+    }
+
+    // Update page title
+    document.title = mode === 'better'
+        ? '1% Better - Daily Growth Journal'
+        : 'Grateful - Your Daily Gratitude Journal';
+
+    // Update welcome prompt
+    const welcomePrompt = document.querySelector('.welcome-prompt');
+    if (welcomePrompt) {
+        welcomePrompt.textContent = mode === 'better'
+            ? 'What will you improve today?'
+            : "What's on your heart in this moment?";
+    }
+
+    // Update streak display for this mode
+    updateStreakDisplay();
+
+    // Re-render current view if on history screen
+    if (currentScreen === 'history') {
+        if (currentView === 'week') renderWeekView();
+        else if (currentView === 'year') renderYearView();
+        else renderCalendar();
+    }
+}
+
+// Update the entry form labels/placeholders for the current mode
+function updateEntryFormForMode() {
+    const placeholders = currentMode === 'better'
+        ? ['What will you improve by 1% today?', 'Another area to grow in?', 'One more small improvement...']
+        : ['What are you grateful for today?', 'What else brought you joy?', 'One more thing to appreciate...'];
+
+    for (let i = 1; i <= 3; i++) {
+        const textarea = document.querySelector(`textarea[data-item-id="${i}"]`);
+        if (textarea) textarea.placeholder = placeholders[i - 1];
+    }
+
+    // Re-initialize suggestions for the new mode
+    initializeSuggestions();
 }
 
 // ========== USER SETTINGS ==========
@@ -365,7 +489,7 @@ function applyColorScheme(scheme) {
 // ========== STREAK TRACKING ==========
 
 async function calculateStreak() {
-    const sessions = await db.getAllSessions();
+    const sessions = await db.getAllSessions(currentMode);
 
     if (sessions.length === 0) {
         return 0;
@@ -523,7 +647,7 @@ function navigateToDate(date, offset) {
 // Load entry for a specific date (or show blank form)
 async function loadEntryForDate(date) {
     const dateStr = formatDate(date);
-    const existingSession = await db.getSessionByDate(dateStr);
+    const existingSession = await db.getSessionByDate(dateStr, currentMode);
 
     if (existingSession) {
         // Load existing entry for this date
@@ -778,7 +902,7 @@ async function saveEntry() {
 
     // At least one item must have content
     if (!hasAnyContent) {
-        showToast('Please add at least one gratitude item');
+        showToast(currentMode === 'better' ? 'Please add at least one improvement item' : 'Please add at least one gratitude item');
         return;
     }
 
@@ -800,15 +924,15 @@ async function saveEntry() {
         } else {
             const entryDate = formatDate(currentEntryDate);
 
-            // Check if session already exists for this date
-            const existing = await db.getSessionByDate(entryDate);
+            // Check if session already exists for this date and mode
+            const existing = await db.getSessionByDate(entryDate, currentMode);
             if (existing) {
                 // Delete existing session
                 await db.deleteSession(existing.id);
             }
 
-            // Create new session for the selected date
-            await db.createSession(entryDate, items);
+            // Create new session for the selected date with current mode type
+            await db.createSession(entryDate, items, currentMode);
 
             showToast('✨ Entry saved successfully!');
 
@@ -843,7 +967,7 @@ function showHistory() {
 
 // Load History
 async function loadHistory() {
-    const sessions = await db.getAllSessions();
+    const sessions = await db.getAllSessions(currentMode);
     const filtered = db.filterSessionsByDateRange(sessions, currentFilter);
 
     const entriesList = document.getElementById('entriesList');
@@ -1033,7 +1157,7 @@ async function showDetail(sessionId) {
 
     const subtitle = document.createElement('div');
     subtitle.className = 'detail-subtitle';
-    subtitle.textContent = 'Your grateful moments';
+    subtitle.textContent = session.type === 'better' ? 'Your 1% improvements' : 'Your grateful moments';
     headerDiv.appendChild(subtitle);
 
     detailContent.appendChild(headerDiv);
@@ -1057,7 +1181,7 @@ async function showDetail(sessionId) {
 
         const itemLabel = document.createElement('div');
         itemLabel.className = 'detail-item-label';
-        itemLabel.textContent = `Grateful for`;
+        itemLabel.textContent = session.type === 'better' ? 'Improving' : 'Grateful for';
         itemHeader.appendChild(itemLabel);
 
         itemDiv.appendChild(itemHeader);
@@ -1120,8 +1244,14 @@ async function editEntry() {
         isEditMode = true;
         editingSessionId = currentSessionId;
 
-        // Clear current form
+        // Switch to the session's mode so form and save work correctly
+        if (session.type && session.type !== currentMode) {
+            switchMode(session.type);
+        }
+
+        // Clear current form and update placeholders for mode
         clearForm();
+        updateEntryFormForMode();
 
         // Load session data into form
         session.items.forEach(item => {
@@ -1388,7 +1518,7 @@ async function renderWeekView() {
     document.getElementById('weekTitle').textContent = `${startStr} - ${endStr}`;
 
     // Get all sessions
-    const allSessions = await db.getAllSessions();
+    const allSessions = await db.getAllSessions(currentMode);
     const sessionMap = {};
     for (const session of allSessions) {
         sessionMap[session.sessionDate] = session;
@@ -1416,8 +1546,9 @@ async function renderWeekView() {
         const dateStr = formatDate(day);
         const isToday = dateStr === todayStr;
 
+        const session = sessionMap[dateStr];
         const dayCard = document.createElement('div');
-        dayCard.className = 'week-day-card' + (isToday ? ' today' : '');
+        dayCard.className = 'week-day-card' + (isToday ? ' today' : '') + (session ? ' has-entry' : '');
 
         // Day header
         const dayHeader = document.createElement('div');
@@ -1440,7 +1571,6 @@ async function renderWeekView() {
         }
 
         // Entry content
-        const session = sessionMap[dateStr];
         if (session) {
             const details = await db.getSessionWithDetails(session.id);
             const entryDiv = document.createElement('div');
@@ -1495,7 +1625,7 @@ async function renderYearView() {
     document.getElementById('yearTitle').textContent = year;
 
     // Get all sessions for this year
-    const allSessions = await db.getAllSessions();
+    const allSessions = await db.getAllSessions(currentMode);
     const sessionDates = new Set(allSessions.map(s => s.sessionDate));
 
     const grid = document.getElementById('yearGrid');
@@ -1607,7 +1737,7 @@ async function renderCalendar() {
     document.getElementById('calendarMonthYear').textContent = `${monthNames[month]} ${year}`;
 
     // Get all sessions
-    const allSessions = await db.getAllSessions();
+    const allSessions = await db.getAllSessions(currentMode);
     const sessionDates = new Set(allSessions.map(s => s.sessionDate));
 
     // Get all contacts with birthdays for this month
@@ -1835,7 +1965,7 @@ function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry
 
 // Open entry for selected calendar date
 async function openCalendarDate(dateStr, birthdays = []) {
-    const session = await db.getSessionByDate(dateStr);
+    const session = await db.getSessionByDate(dateStr, currentMode);
     const detailPane = document.getElementById('calendarDetailPane');
 
     if (session) {
@@ -2028,7 +2158,7 @@ async function navigateDetailDay(currentDateStr, offset) {
     const date = new Date(currentDateStr + 'T00:00:00');
     date.setDate(date.getDate() + offset);
     const targetDateStr = formatDate(date);
-    const session = await db.getSessionByDate(targetDateStr);
+    const session = await db.getSessionByDate(targetDateStr, currentMode);
 
     if (session) {
         showDetail(session.id);
