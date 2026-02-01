@@ -231,7 +231,8 @@ function handleAuthError(error) {
 
 // ========== AUTH STATE OBSERVER ==========
 // This is the core listener — it fires on page load and on every auth state change
-auth.onAuthStateChanged(async (user) => {
+if (auth) {
+    auth.onAuthStateChanged(async (user) => {
     if (user) {
         currentUser = user;
         // Initialize database with user ID
@@ -257,7 +258,14 @@ auth.onAuthStateChanged(async (user) => {
         currentUser = null;
         showAuthScreen();
     }
-});
+    });
+} else {
+    // Firebase failed to load — show auth screen with error
+    console.error('Firebase auth not available');
+    document.addEventListener('DOMContentLoaded', () => {
+        showAuthScreen();
+    });
+}
 
 // ========== APP INITIALIZATION (called after auth) ==========
 async function initializeApp() {
