@@ -1,41 +1,51 @@
 // =============================================
 // FIREBASE CONFIGURATION
 // =============================================
-// To set up Firebase for Flourishly:
-// 1. Go to https://console.firebase.google.com/
-// 2. Create a new project (e.g., "flourishly")
-// 3. In Project Settings, add a Web App
-// 4. Copy your config values below
-// 5. Enable Authentication: Email/Password + Google sign-in
-// 6. Enable Cloud Firestore (start in test mode, then add rules)
-// =============================================
 
-const firebaseConfig = {
-    apiKey: "AIzaSyDumWfmbSqwGbAmzCpUjTLVU6qic8Hpu1Q",
-    authDomain: "flourishly-67bd1.firebaseapp.com",
-    projectId: "flourishly-67bd1",
-    storageBucket: "flourishly-67bd1.firebasestorage.app",
-    messagingSenderId: "861477808589",
-    appId: "1:861477808589:web:adf3a1abdd5896e6b47c84",
-    measurementId: "G-179V9WEP3P"
-};
+var auth = null;
+var firestore = null;
+var googleProvider = null;
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+try {
+    if (typeof firebase === 'undefined') {
+        throw new Error('Firebase SDK not loaded. Are you opening this file directly? Use a web server instead.');
+    }
 
-// Initialize services
-const auth = firebase.auth();
-const firestore = firebase.firestore();
+    const firebaseConfig = {
+        apiKey: "AIzaSyDumWfmbSqwGbAmzCpUjTLVU6qic8Hpu1Q",
+        authDomain: "flourishly-67bd1.firebaseapp.com",
+        projectId: "flourishly-67bd1",
+        storageBucket: "flourishly-67bd1.firebasestorage.app",
+        messagingSenderId: "861477808589",
+        appId: "1:861477808589:web:adf3a1abdd5896e6b47c84",
+        measurementId: "G-179V9WEP3P"
+    };
 
-// Enable offline persistence for Firestore
-firestore.enablePersistence({ synchronizeTabs: true })
-    .catch((err) => {
-        if (err.code === 'failed-precondition') {
-            console.warn('Firestore persistence failed: multiple tabs open');
-        } else if (err.code === 'unimplemented') {
-            console.warn('Firestore persistence not supported in this browser');
-        }
+    firebase.initializeApp(firebaseConfig);
+
+    auth = firebase.auth();
+    firestore = firebase.firestore();
+
+    // Enable offline persistence
+    firestore.enablePersistence({ synchronizeTabs: true })
+        .catch((err) => {
+            if (err.code === 'failed-precondition') {
+                console.warn('Firestore persistence failed: multiple tabs open');
+            } else if (err.code === 'unimplemented') {
+                console.warn('Firestore persistence not supported in this browser');
+            }
+        });
+
+    googleProvider = new firebase.auth.GoogleAuthProvider();
+    console.log('Firebase initialized successfully');
+
+} catch (e) {
+    console.error('Firebase init error:', e);
+    document.addEventListener('DOMContentLoaded', () => {
+        document.body.innerHTML = '<div style="padding:40px;text-align:center;font-family:sans-serif;">' +
+            '<h2 style="color:#333;">Flourishly - Setup Error</h2>' +
+            '<p style="color:#666;margin:16px 0;">' + e.message + '</p>' +
+            '<p style="color:#999;font-size:14px;">Make sure you are serving this via a web server (not file://)<br>' +
+            'Try: <code>python3 -m http.server 8080</code> then open <code>http://localhost:8080</code></p></div>';
     });
-
-// Google Auth Provider
-const googleProvider = new firebase.auth.GoogleAuthProvider();
+}
