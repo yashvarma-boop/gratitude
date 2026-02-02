@@ -1226,14 +1226,17 @@ async function editEntry() {
         // Load the session data
         const session = await db.getSessionWithDetails(currentSessionId);
 
-        // Set edit mode
-        isEditMode = true;
-        editingSessionId = currentSessionId;
-
-        // Switch to the session's mode so form and save work correctly
+        // Switch to the session's mode FIRST (this resets edit state)
         if (session.type && session.type !== currentMode) {
             switchMode(session.type);
         }
+
+        // Set edit mode AFTER switchMode (which resets these)
+        isEditMode = true;
+        editingSessionId = currentSessionId;
+
+        // Set currentEntryDate so save targets the correct date
+        currentEntryDate = new Date(session.sessionDate + 'T00:00:00');
 
         // Clear current form and update placeholders for mode
         clearForm();
@@ -2521,7 +2524,7 @@ async function saveContact() {
     try {
         if (editingId) {
             // Update existing contact
-            await db.updateContact(parseInt(editingId), name, phone, birthday, currentContactPhoto);
+            await db.updateContact(editingId, name, phone, birthday, currentContactPhoto);
             showToast('Contact updated!');
         } else {
             // Add new contact
