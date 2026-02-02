@@ -287,20 +287,35 @@ async function initializeApp() {
     currentEntryDate = new Date();
     loadUserSettings();
     updateWelcomeGreeting();
-    updateStreakDisplay();
     checkUpcomingBirthdays();
 
+    // Set mode without triggering view renders yet (no screen is active)
     const savedMode = localStorage.getItem('currentMode') || 'grateful';
-    switchMode(savedMode);
+    currentMode = savedMode;
+    localStorage.setItem('currentMode', savedMode);
 
-    const hasVisited = localStorage.getItem('hasVisitedBefore');
-    if (hasVisited) {
-        showScreen('history');
-        switchToCalendarView();
-    } else {
-        localStorage.setItem('hasVisitedBefore', 'true');
-        showScreen('welcome');
-    }
+    // Update mode toggle buttons
+    document.querySelectorAll('.mode-toggle-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    const activeBtn = document.querySelector(`.mode-toggle-btn[data-mode="${savedMode}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Apply mode class
+    const app = document.getElementById('app');
+    app.classList.remove('mode-grateful', 'mode-better');
+    app.classList.add(`mode-${savedMode}`);
+
+    document.title = savedMode === 'better'
+        ? 'Flourishly - 1% Better'
+        : 'Flourishly - Grateful';
+
+    updateStreakDisplay();
+
+    // Always start on history screen with month view and today's date selected
+    localStorage.setItem('hasVisitedBefore', 'true');
+    currentView = 'month';
+    showScreen('history');
 
     updateDateDisplay();
     initializeSuggestions();

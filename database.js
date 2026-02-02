@@ -267,21 +267,28 @@ class GratitudeDB {
 
     // Get contact by ID
     async getContact(contactId) {
-        const doc = await this._col('contacts').doc(contactId).get();
-        if (!doc.exists) return null;
-        return { id: doc.id, ...doc.data() };
+        try {
+            const doc = await this._col('contacts').doc(String(contactId)).get();
+            if (!doc.exists) return null;
+            return { id: doc.id, ...doc.data() };
+        } catch (err) {
+            console.error('getContact error:', err);
+            return null;
+        }
     }
 
     // Update contact
     async updateContact(contactId, name, phoneNumber, birthday = null, photo = null) {
-        await this._col('contacts').doc(contactId).update({
+        const id = String(contactId);
+        // Use set with merge instead of update — update throws if doc doesn't exist
+        await this._col('contacts').doc(id).set({
             name,
             phoneNumber,
             birthday,
             photo,
             updatedAt: Date.now()
-        });
-        return contactId;
+        }, { merge: true });
+        return id;
     }
 
     // Get upcoming birthdays (within next X days)
@@ -341,7 +348,7 @@ class GratitudeDB {
 
     // Delete contact
     async deleteContact(contactId) {
-        await this._col('contacts').doc(contactId).delete();
+        await this._col('contacts').doc(String(contactId)).delete();
     }
 }
 

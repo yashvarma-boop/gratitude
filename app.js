@@ -11,6 +11,8 @@ let currentView = 'month';
 let calendarDate = new Date();
 let weekDate = new Date();
 let yearDate = new Date();
+let selectedCalendarDate = null; // Tracks which date is selected in the calendar detail pane
+let selectedCalendarBirthdays = []; // Birthdays for the selected date
 let cameraStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -390,11 +392,43 @@ function switchMode(mode) {
     // Update streak display for this mode
     updateStreakDisplay();
 
+    // Reset edit state when switching modes to prevent cross-mode overwrites
+    isEditMode = false;
+    editingSessionId = null;
+
     // Re-render current view if on history screen
     if (currentScreen === 'history') {
-        if (currentView === 'week') renderWeekView();
-        else if (currentView === 'year') renderYearView();
-        else renderCalendar();
+        if (currentView === 'week') {
+            renderWeekView();
+        } else if (currentView === 'year') {
+            renderYearView();
+        } else {
+            // Re-render the calendar grid only (skip auto-select, we handle detail pane below)
+            renderCalendar(true);
+
+            // Directly refresh the detail pane for the new mode's data
+            // This avoids async race conditions from renderCalendar's auto-select
+            const dateToShow = selectedCalendarDate || formatDate(new Date());
+            openCalendarDate(dateToShow, selectedCalendarBirthdays || []);
+        }
+    }
+
+    // If on entry screen, clear form, update mode labels, and reload entry for current date in new mode
+    if (currentScreen === 'entry') {
+        clearForm();
+        updateEntryFormForMode();
+        updateDateDisplay();
+        loadEntryForDate(currentEntryDate);
+    }
+
+    // If on detail screen, go back to history since the detail may be for the other mode
+    if (currentScreen === 'detail') {
+        showScreen('history');
+    }
+
+    // If on welcome screen, update greeting for the mode
+    if (currentScreen === 'welcome') {
+        updateWelcomeGreeting();
     }
 }
 
@@ -893,9 +927,10 @@ async function saveEntry() {
             isEditMode = false;
             editingSessionId = null;
 
-            // Return to detail view
+            // Return to the previous calendar view
             setTimeout(() => {
-                showDetail(sessionId);
+                clearForm();
+                showScreen('history');
             }, 1000);
         } else {
             const entryDate = formatDate(currentEntryDate);
@@ -915,9 +950,12 @@ async function saveEntry() {
             // Update streak display
             updateStreakDisplay();
 
-            // Clear form
+            // Clear form and return to the previous calendar view
             setTimeout(() => {
                 clearForm();
+                isEditMode = false;
+                editingSessionId = null;
+                showScreen('history');
             }, 1000);
         }
     } catch (error) {
@@ -1216,14 +1254,17 @@ async function editEntry() {
         // Load the session data
         const session = await db.getSessionWithDetails(currentSessionId);
 
-        // Set edit mode
-        isEditMode = true;
-        editingSessionId = currentSessionId;
-
-        // Switch to the session's mode so form and save work correctly
+        // Switch to the session's mode FIRST (this resets edit state)
         if (session.type && session.type !== currentMode) {
             switchMode(session.type);
         }
+
+        // Set edit mode AFTER switchMode (which resets these)
+        isEditMode = true;
+        editingSessionId = currentSessionId;
+
+        // Set currentEntryDate so save targets the correct date
+        currentEntryDate = new Date(session.sessionDate + 'T00:00:00');
 
         // Clear current form and update placeholders for mode
         clearForm();
@@ -1703,7 +1744,8 @@ function nextYear() {
 }
 
 // Render calendar for current month
-async function renderCalendar() {
+// skipAutoSelect: if true, don't auto-select today (caller will handle detail pane separately)
+async function renderCalendar(skipAutoSelect = false) {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
 
@@ -1787,6 +1829,22 @@ async function renderCalendar() {
 
     // Render upcoming birthdays panel below calendar
     renderCalendarBirthdays();
+
+    // Auto-select today's date in the detail pane if viewing the current month
+    if (!skipAutoSelect) {
+        if (today.getMonth() === month && today.getFullYear() === year) {
+            const todayStr = formatDate(today);
+            const todayBirthdayKey = `${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const todayBirthdays = birthdayMap[todayBirthdayKey] || [];
+            openCalendarDate(todayStr, todayBirthdays);
+        } else {
+            // Clear detail pane if not viewing current month
+            const detailPane = document.getElementById('calendarDetailPane');
+            if (detailPane) {
+                detailPane.innerHTML = '<div class="calendar-detail-placeholder"><p>Select a day to view details</p></div>';
+            }
+        }
+    }
 }
 
 // Render upcoming birthdays panel on the calendar view
@@ -1941,6 +1999,10 @@ function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry
 
 // Open entry for selected calendar date
 async function openCalendarDate(dateStr, birthdays = []) {
+    // Track the selected date so we can refresh the detail pane on mode switch
+    selectedCalendarDate = dateStr;
+    selectedCalendarBirthdays = birthdays;
+
     const session = await db.getSessionByDate(dateStr, currentMode);
     const detailPane = document.getElementById('calendarDetailPane');
 
@@ -2324,7 +2386,13 @@ async function showAddressBook() {
 }
 
 async function loadContacts() {
-    const contacts = await db.getAllContacts();
+    let contacts = [];
+    try {
+        contacts = await db.getAllContacts();
+    } catch (err) {
+        console.error('loadContacts failed:', err);
+        showToast('Error loading contacts: ' + (err.message || 'Unknown error'));
+    }
     const contactsList = document.getElementById('contactsList');
     const countElement = document.getElementById('contactsCount');
 
@@ -2344,47 +2412,59 @@ async function loadContacts() {
 
     contactsList.innerHTML = '';
     contacts.forEach(contact => {
-        const contactCard = document.createElement('div');
-        contactCard.className = 'contact-card';
-        contactCard.dataset.name = contact.name;
-        contactCard.dataset.phone = contact.phoneNumber;
+        try {
+            // Guard against contacts with missing data
+            const name = contact.name || 'Unknown';
+            const phone = contact.phoneNumber || '';
+            const contactId = contact.id || '';
 
-        // Check if it's their birthday today
-        const isBirthdayToday = contact.birthday === todayKey;
-        if (isBirthdayToday) {
-            contactCard.classList.add('birthday-today');
+            if (!contactId) return; // Skip contacts without an ID
+
+            const contactCard = document.createElement('div');
+            contactCard.className = 'contact-card';
+            contactCard.dataset.name = name;
+            contactCard.dataset.phone = phone;
+
+            // Check if it's their birthday today
+            const isBirthdayToday = contact.birthday === todayKey;
+            if (isBirthdayToday) {
+                contactCard.classList.add('birthday-today');
+            }
+
+            // Format birthday for display
+            let birthdayDisplay = '';
+            if (contact.birthday) {
+                const [month, day] = contact.birthday.split('-');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+            }
+
+            // Contact photo or placeholder
+            const initial = name.charAt(0).toUpperCase();
+            const photoHTML = contact.photo
+                ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(name)}">`
+                : `<div class="contact-card-photo-placeholder">${initial}</div>`;
+
+            contactCard.innerHTML = `
+                <div class="contact-card-header">
+                    ${photoHTML}
+                    ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
+                </div>
+                <div class="contact-card-body">
+                    <div class="contact-card-name">${escapeHtml(name)}</div>
+                    <div class="contact-card-phone">${escapeHtml(phone)}</div>
+                    ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
+                </div>
+                <div class="contact-card-actions">
+                    ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(name)}', '${escapeHtml(phone)}')" title="Send birthday message">💬 Send</button>` : ''}
+                    <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact('${contactId}')" title="Edit">✏️</button>
+                    <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm('${contactId}')" title="Delete">🗑️</button>
+                </div>
+            `;
+            contactsList.appendChild(contactCard);
+        } catch (err) {
+            console.error('Error rendering contact:', contact, err);
         }
-
-        // Format birthday for display
-        let birthdayDisplay = '';
-        if (contact.birthday) {
-            const [month, day] = contact.birthday.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
-        }
-
-        // Contact photo or placeholder
-        const photoHTML = contact.photo
-            ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(contact.name)}">`
-            : `<div class="contact-card-photo-placeholder">${contact.name.charAt(0).toUpperCase()}</div>`;
-
-        contactCard.innerHTML = `
-            <div class="contact-card-header">
-                ${photoHTML}
-                ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
-            </div>
-            <div class="contact-card-body">
-                <div class="contact-card-name">${escapeHtml(contact.name)}</div>
-                <div class="contact-card-phone">${escapeHtml(contact.phoneNumber)}</div>
-                ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
-            </div>
-            <div class="contact-card-actions">
-                ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}')" title="Send birthday message">💬 Send</button>` : ''}
-                <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact(${contact.id})" title="Edit">✏️</button>
-                <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm(${contact.id})" title="Delete">🗑️</button>
-            </div>
-        `;
-        contactsList.appendChild(contactCard);
     });
 }
 
@@ -2439,10 +2519,10 @@ async function editContact(contactId) {
             return;
         }
 
-        // Populate form
-        document.getElementById('editingContactId').value = contactId;
-        document.getElementById('contactName').value = contact.name;
-        document.getElementById('contactPhone').value = contact.phoneNumber;
+        // Populate form with null guards
+        document.getElementById('editingContactId').value = String(contactId);
+        document.getElementById('contactName').value = contact.name || '';
+        document.getElementById('contactPhone').value = contact.phoneNumber || '';
 
         // Set birthday if exists (need to convert MM-DD to date input format)
         if (contact.birthday) {
@@ -2464,11 +2544,12 @@ async function editContact(contactId) {
         document.getElementById('cancelEditBtn').style.display = 'inline-block';
 
         // Scroll to form
-        document.querySelector('.contact-form').scrollIntoView({ behavior: 'smooth' });
+        const formPanel = document.querySelector('.address-book-form-panel');
+        if (formPanel) formPanel.scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
         console.error('Error loading contact for edit:', error);
-        showToast('Error loading contact');
+        showToast('Error loading contact: ' + (error.message || 'Unknown error'));
     }
 }
 
@@ -2511,7 +2592,7 @@ async function saveContact() {
     try {
         if (editingId) {
             // Update existing contact
-            await db.updateContact(parseInt(editingId), name, phone, birthday, currentContactPhoto);
+            await db.updateContact(editingId, name, phone, birthday, currentContactPhoto);
             showToast('Contact updated!');
         } else {
             // Add new contact
@@ -2523,7 +2604,7 @@ async function saveContact() {
         await loadContacts();
     } catch (error) {
         console.error('Error saving contact:', error);
-        showToast('Error saving contact');
+        showToast('Error saving contact: ' + (error.message || 'Unknown error'));
     }
 }
 
@@ -2535,7 +2616,7 @@ async function deleteContactConfirm(contactId) {
             await loadContacts();
         } catch (error) {
             console.error('Error deleting contact:', error);
-            showToast('Error deleting contact');
+            showToast('Error deleting contact: ' + (error.message || 'Unknown error'));
         }
     }
 }
@@ -2855,49 +2936,33 @@ async function sendGratitudeMessage() {
         return;
     }
 
-    const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
+    // Strip non-numeric characters for the phone number (keep leading +)
+    const cleanPhone = recipientPhone.replace(/[^\d+]/g, '');
 
-    // Show sending status
-    showToast(`Sending ${channelLabel}...`);
-
-    try {
-        const response = await fetch('/api/send-sms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                to: recipientPhone,
-                message: message,
-                channel: selectedChannel
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to send message');
-        }
-
-        const result = await response.json();
-
-        // Clear the form
-        document.getElementById('recipientSelect').value = '';
-        document.getElementById('recipientPhone').value = '';
-        document.getElementById('recipientPhone').disabled = false;
-        document.getElementById('gratitudeMessage').value = '';
-        document.getElementById('messageCharCount').textContent = '0';
-
-        showToast(`${channelLabel} sent successfully! ✓`);
-
-        // Return to home after 2 seconds
-        setTimeout(() => {
-            goHome();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error sending message:', error);
-        showToast(`Error: ${error.message}`);
+    if (selectedChannel === 'whatsapp') {
+        // Remove leading + for wa.me format
+        const waPhone = cleanPhone.replace(/^\+/, '');
+        const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+        showToast('Opening WhatsApp...');
+    } else {
+        // Use sms: URI scheme
+        const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
+        window.location.href = smsUrl;
+        showToast('Opening SMS...');
     }
+
+    // Clear the form
+    document.getElementById('recipientSelect').value = '';
+    document.getElementById('recipientPhone').value = '';
+    document.getElementById('recipientPhone').disabled = false;
+    document.getElementById('gratitudeMessage').value = '';
+    document.getElementById('messageCharCount').textContent = '0';
+
+    // Return to home after 2 seconds
+    setTimeout(() => {
+        goHome();
+    }, 2000);
 }
 
 // Helper function to escape HTML
