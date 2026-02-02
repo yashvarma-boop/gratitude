@@ -1824,8 +1824,8 @@ async function renderCalendar(skipAutoSelect = false) {
     }
 
     // Next month days to fill grid
-    const totalCells = grid.children.length - 7; // Subtract headers
-    const remainingCells = 42 - totalCells - 7; // 6 weeks * 7 days
+    const totalCells = grid.children.length - 7; // Subtract day-name headers
+    const remainingCells = 42 - totalCells; // Fill to 6 weeks × 7 days
     for (let day = 1; day <= remainingCells; day++) {
         const dayCell = createCalendarDay(day, true, null, false, false, []);
         grid.appendChild(dayCell);
@@ -2585,12 +2585,13 @@ async function saveContact() {
     }
 
     // Convert birthday to MM-DD format for easier comparison (ignore year)
+    // Parse the string directly to avoid timezone issues with new Date()
     let birthday = null;
     if (birthdayInput) {
-        const date = new Date(birthdayInput);
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        birthday = `${month}-${day}`;
+        const parts = birthdayInput.split('-'); // "YYYY-MM-DD"
+        if (parts.length === 3) {
+            birthday = `${parts[1]}-${parts[2]}`; // "MM-DD"
+        }
     }
 
     try {
@@ -2887,16 +2888,24 @@ async function showSendGratitude() {
 }
 
 async function loadRecipientsList() {
-    const contacts = await db.getAllContacts();
+    let contacts = [];
+    try {
+        contacts = await db.getAllContacts();
+    } catch (err) {
+        console.error('loadRecipientsList failed:', err);
+    }
     const select = document.getElementById('recipientSelect');
 
     // Clear existing options except the first one
     select.innerHTML = '<option value="">Choose from address book...</option>';
 
     contacts.forEach(contact => {
+        const name = contact.name || 'Unknown';
+        const phone = contact.phoneNumber || '';
+        if (!phone) return; // Skip contacts without phone numbers
         const option = document.createElement('option');
-        option.value = contact.phoneNumber;
-        option.textContent = `${contact.name} (${contact.phoneNumber})`;
+        option.value = phone;
+        option.textContent = `${name} (${phone})`;
         select.appendChild(option);
     });
 }
