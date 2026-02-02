@@ -396,6 +396,10 @@ function switchMode(mode) {
 
     // Re-render current view if on history screen
     if (currentScreen === 'history') {
+        // Clear the detail pane so stale entries from the other mode don't linger
+        const detailPane = document.getElementById('calendarDetailPane');
+        if (detailPane) detailPane.innerHTML = '';
+
         if (currentView === 'week') renderWeekView();
         else if (currentView === 'year') renderYearView();
         else renderCalendar();
@@ -1811,6 +1815,20 @@ async function renderCalendar() {
 
     // Render upcoming birthdays panel below calendar
     renderCalendarBirthdays();
+
+    // Auto-select today's date in the detail pane if viewing the current month
+    if (today.getMonth() === month && today.getFullYear() === year) {
+        const todayStr = formatDate(today);
+        const todayBirthdayKey = `${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+        const todayBirthdays = birthdayMap[todayBirthdayKey] || [];
+        openCalendarDate(todayStr, todayBirthdays);
+    } else {
+        // Clear detail pane if not viewing current month
+        const detailPane = document.getElementById('calendarDetailPane');
+        if (detailPane) {
+            detailPane.innerHTML = '<div class="calendar-detail-placeholder"><p>Select a day to view details</p></div>';
+        }
+    }
 }
 
 // Render upcoming birthdays panel on the calendar view
@@ -2348,7 +2366,13 @@ async function showAddressBook() {
 }
 
 async function loadContacts() {
-    const contacts = await db.getAllContacts();
+    let contacts = [];
+    try {
+        contacts = await db.getAllContacts();
+    } catch (err) {
+        console.error('loadContacts failed:', err);
+        showToast('Error loading contacts: ' + (err.message || 'Unknown error'));
+    }
     const contactsList = document.getElementById('contactsList');
     const countElement = document.getElementById('contactsCount');
 
@@ -2879,49 +2903,33 @@ async function sendGratitudeMessage() {
         return;
     }
 
-    const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
+    // Strip non-numeric characters for the phone number (keep leading +)
+    const cleanPhone = recipientPhone.replace(/[^\d+]/g, '');
 
-    // Show sending status
-    showToast(`Sending ${channelLabel}...`);
-
-    try {
-        const response = await fetch('/api/send-sms', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                to: recipientPhone,
-                message: message,
-                channel: selectedChannel
-            })
-        });
-
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || 'Failed to send message');
-        }
-
-        const result = await response.json();
-
-        // Clear the form
-        document.getElementById('recipientSelect').value = '';
-        document.getElementById('recipientPhone').value = '';
-        document.getElementById('recipientPhone').disabled = false;
-        document.getElementById('gratitudeMessage').value = '';
-        document.getElementById('messageCharCount').textContent = '0';
-
-        showToast(`${channelLabel} sent successfully! ✓`);
-
-        // Return to home after 2 seconds
-        setTimeout(() => {
-            goHome();
-        }, 2000);
-
-    } catch (error) {
-        console.error('Error sending message:', error);
-        showToast(`Error: ${error.message}`);
+    if (selectedChannel === 'whatsapp') {
+        // Remove leading + for wa.me format
+        const waPhone = cleanPhone.replace(/^\+/, '');
+        const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
+        window.open(waUrl, '_blank');
+        showToast('Opening WhatsApp...');
+    } else {
+        // Use sms: URI scheme
+        const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
+        window.location.href = smsUrl;
+        showToast('Opening SMS...');
     }
+
+    // Clear the form
+    document.getElementById('recipientSelect').value = '';
+    document.getElementById('recipientPhone').value = '';
+    document.getElementById('recipientPhone').disabled = false;
+    document.getElementById('gratitudeMessage').value = '';
+    document.getElementById('messageCharCount').textContent = '0';
+
+    // Return to home after 2 seconds
+    setTimeout(() => {
+        goHome();
+    }, 2000);
 }
 
 // Helper function to escape HTML
