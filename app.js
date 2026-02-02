@@ -11,6 +11,8 @@ let currentView = 'month';
 let calendarDate = new Date();
 let weekDate = new Date();
 let yearDate = new Date();
+let selectedCalendarDate = null; // Tracks which date is selected in the calendar detail pane
+let selectedCalendarBirthdays = []; // Birthdays for the selected date
 let cameraStream = null;
 let mediaRecorder = null;
 let recordedChunks = [];
@@ -395,11 +397,20 @@ function switchMode(mode) {
     editingSessionId = null;
 
     // Re-render current view if on history screen
-    // Use switchToViewMode which fully refreshes the view (same as clicking week/month/year tabs)
     if (currentScreen === 'history') {
-        const detailPane = document.getElementById('calendarDetailPane');
-        if (detailPane) detailPane.innerHTML = '';
-        switchToViewMode(currentView);
+        if (currentView === 'week') {
+            renderWeekView();
+        } else if (currentView === 'year') {
+            renderYearView();
+        } else {
+            // Re-render the calendar grid only (skip auto-select, we handle detail pane below)
+            renderCalendar(true);
+
+            // Directly refresh the detail pane for the new mode's data
+            // This avoids async race conditions from renderCalendar's auto-select
+            const dateToShow = selectedCalendarDate || formatDate(new Date());
+            openCalendarDate(dateToShow, selectedCalendarBirthdays || []);
+        }
     }
 
     // If on entry screen, clear form, update mode labels, and reload entry for current date in new mode
@@ -1733,7 +1744,8 @@ function nextYear() {
 }
 
 // Render calendar for current month
-async function renderCalendar() {
+// skipAutoSelect: if true, don't auto-select today (caller will handle detail pane separately)
+async function renderCalendar(skipAutoSelect = false) {
     const year = calendarDate.getFullYear();
     const month = calendarDate.getMonth();
 
@@ -1819,16 +1831,18 @@ async function renderCalendar() {
     renderCalendarBirthdays();
 
     // Auto-select today's date in the detail pane if viewing the current month
-    if (today.getMonth() === month && today.getFullYear() === year) {
-        const todayStr = formatDate(today);
-        const todayBirthdayKey = `${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-        const todayBirthdays = birthdayMap[todayBirthdayKey] || [];
-        openCalendarDate(todayStr, todayBirthdays);
-    } else {
-        // Clear detail pane if not viewing current month
-        const detailPane = document.getElementById('calendarDetailPane');
-        if (detailPane) {
-            detailPane.innerHTML = '<div class="calendar-detail-placeholder"><p>Select a day to view details</p></div>';
+    if (!skipAutoSelect) {
+        if (today.getMonth() === month && today.getFullYear() === year) {
+            const todayStr = formatDate(today);
+            const todayBirthdayKey = `${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+            const todayBirthdays = birthdayMap[todayBirthdayKey] || [];
+            openCalendarDate(todayStr, todayBirthdays);
+        } else {
+            // Clear detail pane if not viewing current month
+            const detailPane = document.getElementById('calendarDetailPane');
+            if (detailPane) {
+                detailPane.innerHTML = '<div class="calendar-detail-placeholder"><p>Select a day to view details</p></div>';
+            }
         }
     }
 }
@@ -1985,6 +1999,10 @@ function createCalendarDay(day, isOtherMonth, dateStr, isToday = false, hasEntry
 
 // Open entry for selected calendar date
 async function openCalendarDate(dateStr, birthdays = []) {
+    // Track the selected date so we can refresh the detail pane on mode switch
+    selectedCalendarDate = dateStr;
+    selectedCalendarBirthdays = birthdays;
+
     const session = await db.getSessionByDate(dateStr, currentMode);
     const detailPane = document.getElementById('calendarDetailPane');
 

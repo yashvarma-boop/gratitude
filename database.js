@@ -280,13 +280,14 @@ class GratitudeDB {
     // Update contact
     async updateContact(contactId, name, phoneNumber, birthday = null, photo = null) {
         const id = String(contactId);
-        await this._col('contacts').doc(id).update({
+        // Use set with merge instead of update — update throws if doc doesn't exist
+        await this._col('contacts').doc(id).set({
             name,
             phoneNumber,
             birthday,
             photo,
             updatedAt: Date.now()
-        });
+        }, { merge: true });
         return id;
     }
 
