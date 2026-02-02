@@ -705,7 +705,7 @@ function showScreen(screenName) {
         screen.classList.remove('active');
     });
 
-    // Update header
+    // Update header - use helper to safely set display (elements may not exist)
     const archiveBtn = document.getElementById('archiveBtn');
     const homeBtn = document.getElementById('homeBtn');
     const settingsBtn = document.getElementById('settingsBtn');
@@ -713,34 +713,38 @@ function showScreen(screenName) {
     const sendGratitudeBtn = document.getElementById('sendGratitudeBtn');
     const addressBookBtn = document.getElementById('addressBookBtn');
 
+    function setDisplay(el, value) {
+        if (el) el.style.display = value;
+    }
+
     // Show/hide header elements based on screen
     switch (screenName) {
         case 'welcome':
             document.getElementById('welcomeScreen').classList.add('active');
-            archiveBtn.style.display = 'flex';
-            homeBtn.style.display = 'none';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'flex');
+            setDisplay(homeBtn, 'none');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'entry':
             document.getElementById('entryScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             // Render the currently active view
             if (currentView === 'week') renderWeekView();
             else if (currentView === 'year') renderYearView();
@@ -748,40 +752,40 @@ function showScreen(screenName) {
             break;
         case 'settings':
             document.getElementById('settingsScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'none';
-            addressBookBtn.style.display = 'none';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'none');
+            setDisplay(addressBookBtn, 'none');
             break;
         case 'detail':
             document.getElementById('detailScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'flex';
-            shareBtn.onclick = shareCurrentEntry;
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'flex');
+            if (shareBtn) shareBtn.onclick = shareCurrentEntry;
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'addressBook':
             document.getElementById('addressBookScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'none';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'none');
             break;
         case 'sendGratitude':
             document.getElementById('sendGratitudeScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'none';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'none');
+            setDisplay(addressBookBtn, 'flex');
             break;
     }
 
@@ -1820,8 +1824,8 @@ async function renderCalendar(skipAutoSelect = false) {
     }
 
     // Next month days to fill grid
-    const totalCells = grid.children.length - 7; // Subtract headers
-    const remainingCells = 42 - totalCells - 7; // 6 weeks * 7 days
+    const totalCells = grid.children.length - 7; // Subtract day-name headers
+    const remainingCells = 42 - totalCells; // Fill to 6 weeks × 7 days
     for (let day = 1; day <= remainingCells; day++) {
         const dayCell = createCalendarDay(day, true, null, false, false, []);
         grid.appendChild(dayCell);
@@ -2581,12 +2585,13 @@ async function saveContact() {
     }
 
     // Convert birthday to MM-DD format for easier comparison (ignore year)
+    // Parse the string directly to avoid timezone issues with new Date()
     let birthday = null;
     if (birthdayInput) {
-        const date = new Date(birthdayInput);
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        birthday = `${month}-${day}`;
+        const parts = birthdayInput.split('-'); // "YYYY-MM-DD"
+        if (parts.length === 3) {
+            birthday = `${parts[1]}-${parts[2]}`; // "MM-DD"
+        }
     }
 
     try {
@@ -2883,16 +2888,24 @@ async function showSendGratitude() {
 }
 
 async function loadRecipientsList() {
-    const contacts = await db.getAllContacts();
+    let contacts = [];
+    try {
+        contacts = await db.getAllContacts();
+    } catch (err) {
+        console.error('loadRecipientsList failed:', err);
+    }
     const select = document.getElementById('recipientSelect');
 
     // Clear existing options except the first one
     select.innerHTML = '<option value="">Choose from address book...</option>';
 
     contacts.forEach(contact => {
+        const name = contact.name || 'Unknown';
+        const phone = contact.phoneNumber || '';
+        if (!phone) return; // Skip contacts without phone numbers
         const option = document.createElement('option');
-        option.value = contact.phoneNumber;
-        option.textContent = `${contact.name} (${contact.phoneNumber})`;
+        option.value = phone;
+        option.textContent = `${name} (${phone})`;
         select.appendChild(option);
     });
 }
