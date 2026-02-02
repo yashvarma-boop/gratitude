@@ -401,10 +401,17 @@ function switchMode(mode) {
         else renderCalendar();
     }
 
-    // If on entry screen, clear form and reload entry for current date in new mode
+    // If on entry screen, clear form, update mode labels, and reload entry for current date in new mode
     if (currentScreen === 'entry') {
         clearForm();
+        updateEntryFormForMode();
+        updateDateDisplay();
         loadEntryForDate(currentEntryDate);
+    }
+
+    // If on detail screen, go back to history since the detail may be for the other mode
+    if (currentScreen === 'detail') {
+        showScreen('history');
     }
 }
 
@@ -903,9 +910,10 @@ async function saveEntry() {
             isEditMode = false;
             editingSessionId = null;
 
-            // Return to detail view
+            // Return to the previous calendar view
             setTimeout(() => {
-                showDetail(sessionId);
+                clearForm();
+                showScreen('history');
             }, 1000);
         } else {
             const entryDate = formatDate(currentEntryDate);
@@ -925,9 +933,12 @@ async function saveEntry() {
             // Update streak display
             updateStreakDisplay();
 
-            // Clear form
+            // Clear form and return to the previous calendar view
             setTimeout(() => {
                 clearForm();
+                isEditMode = false;
+                editingSessionId = null;
+                showScreen('history');
             }, 1000);
         }
     } catch (error) {
