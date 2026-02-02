@@ -395,14 +395,11 @@ function switchMode(mode) {
     editingSessionId = null;
 
     // Re-render current view if on history screen
+    // Use switchToViewMode which fully refreshes the view (same as clicking week/month/year tabs)
     if (currentScreen === 'history') {
-        // Clear the detail pane so stale entries from the other mode don't linger
         const detailPane = document.getElementById('calendarDetailPane');
         if (detailPane) detailPane.innerHTML = '';
-
-        if (currentView === 'week') renderWeekView();
-        else if (currentView === 'year') renderYearView();
-        else renderCalendar();
+        switchToViewMode(currentView);
     }
 
     // If on entry screen, clear form, update mode labels, and reload entry for current date in new mode
@@ -416,6 +413,11 @@ function switchMode(mode) {
     // If on detail screen, go back to history since the detail may be for the other mode
     if (currentScreen === 'detail') {
         showScreen('history');
+    }
+
+    // If on welcome screen, update greeting for the mode
+    if (currentScreen === 'welcome') {
+        updateWelcomeGreeting();
     }
 }
 
@@ -2512,11 +2514,12 @@ async function editContact(contactId) {
         document.getElementById('cancelEditBtn').style.display = 'inline-block';
 
         // Scroll to form
-        document.querySelector('.contact-form').scrollIntoView({ behavior: 'smooth' });
+        const formPanel = document.querySelector('.address-book-form-panel');
+        if (formPanel) formPanel.scrollIntoView({ behavior: 'smooth' });
 
     } catch (error) {
         console.error('Error loading contact for edit:', error);
-        showToast('Error loading contact');
+        showToast('Error loading contact: ' + (error.message || 'Unknown error'));
     }
 }
 
@@ -2571,7 +2574,7 @@ async function saveContact() {
         await loadContacts();
     } catch (error) {
         console.error('Error saving contact:', error);
-        showToast('Error saving contact');
+        showToast('Error saving contact: ' + (error.message || 'Unknown error'));
     }
 }
 
@@ -2583,7 +2586,7 @@ async function deleteContactConfirm(contactId) {
             await loadContacts();
         } catch (error) {
             console.error('Error deleting contact:', error);
-            showToast('Error deleting contact');
+            showToast('Error deleting contact: ' + (error.message || 'Unknown error'));
         }
     }
 }
