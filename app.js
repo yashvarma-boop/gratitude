@@ -390,11 +390,21 @@ function switchMode(mode) {
     // Update streak display for this mode
     updateStreakDisplay();
 
+    // Reset edit state when switching modes to prevent cross-mode overwrites
+    isEditMode = false;
+    editingSessionId = null;
+
     // Re-render current view if on history screen
     if (currentScreen === 'history') {
         if (currentView === 'week') renderWeekView();
         else if (currentView === 'year') renderYearView();
         else renderCalendar();
+    }
+
+    // If on entry screen, clear form and reload entry for current date in new mode
+    if (currentScreen === 'entry') {
+        clearForm();
+        loadEntryForDate(currentEntryDate);
     }
 }
 
@@ -2380,8 +2390,8 @@ async function loadContacts() {
             </div>
             <div class="contact-card-actions">
                 ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}')" title="Send birthday message">💬 Send</button>` : ''}
-                <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact(${contact.id})" title="Edit">✏️</button>
-                <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm(${contact.id})" title="Delete">🗑️</button>
+                <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact('${contact.id}')" title="Edit">✏️</button>
+                <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm('${contact.id}')" title="Delete">🗑️</button>
             </div>
         `;
         contactsList.appendChild(contactCard);
