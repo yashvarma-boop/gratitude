@@ -2394,47 +2394,59 @@ async function loadContacts() {
 
     contactsList.innerHTML = '';
     contacts.forEach(contact => {
-        const contactCard = document.createElement('div');
-        contactCard.className = 'contact-card';
-        contactCard.dataset.name = contact.name;
-        contactCard.dataset.phone = contact.phoneNumber;
+        try {
+            // Guard against contacts with missing data
+            const name = contact.name || 'Unknown';
+            const phone = contact.phoneNumber || '';
+            const contactId = contact.id || '';
 
-        // Check if it's their birthday today
-        const isBirthdayToday = contact.birthday === todayKey;
-        if (isBirthdayToday) {
-            contactCard.classList.add('birthday-today');
+            if (!contactId) return; // Skip contacts without an ID
+
+            const contactCard = document.createElement('div');
+            contactCard.className = 'contact-card';
+            contactCard.dataset.name = name;
+            contactCard.dataset.phone = phone;
+
+            // Check if it's their birthday today
+            const isBirthdayToday = contact.birthday === todayKey;
+            if (isBirthdayToday) {
+                contactCard.classList.add('birthday-today');
+            }
+
+            // Format birthday for display
+            let birthdayDisplay = '';
+            if (contact.birthday) {
+                const [month, day] = contact.birthday.split('-');
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
+            }
+
+            // Contact photo or placeholder
+            const initial = name.charAt(0).toUpperCase();
+            const photoHTML = contact.photo
+                ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(name)}">`
+                : `<div class="contact-card-photo-placeholder">${initial}</div>`;
+
+            contactCard.innerHTML = `
+                <div class="contact-card-header">
+                    ${photoHTML}
+                    ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
+                </div>
+                <div class="contact-card-body">
+                    <div class="contact-card-name">${escapeHtml(name)}</div>
+                    <div class="contact-card-phone">${escapeHtml(phone)}</div>
+                    ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
+                </div>
+                <div class="contact-card-actions">
+                    ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(name)}', '${escapeHtml(phone)}')" title="Send birthday message">💬 Send</button>` : ''}
+                    <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact('${contactId}')" title="Edit">✏️</button>
+                    <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm('${contactId}')" title="Delete">🗑️</button>
+                </div>
+            `;
+            contactsList.appendChild(contactCard);
+        } catch (err) {
+            console.error('Error rendering contact:', contact, err);
         }
-
-        // Format birthday for display
-        let birthdayDisplay = '';
-        if (contact.birthday) {
-            const [month, day] = contact.birthday.split('-');
-            const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-            birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
-        }
-
-        // Contact photo or placeholder
-        const photoHTML = contact.photo
-            ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(contact.name)}">`
-            : `<div class="contact-card-photo-placeholder">${contact.name.charAt(0).toUpperCase()}</div>`;
-
-        contactCard.innerHTML = `
-            <div class="contact-card-header">
-                ${photoHTML}
-                ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
-            </div>
-            <div class="contact-card-body">
-                <div class="contact-card-name">${escapeHtml(contact.name)}</div>
-                <div class="contact-card-phone">${escapeHtml(contact.phoneNumber)}</div>
-                ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
-            </div>
-            <div class="contact-card-actions">
-                ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}')" title="Send birthday message">💬 Send</button>` : ''}
-                <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact('${contact.id}')" title="Edit">✏️</button>
-                <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm('${contact.id}')" title="Delete">🗑️</button>
-            </div>
-        `;
-        contactsList.appendChild(contactCard);
     });
 }
 
@@ -2489,10 +2501,10 @@ async function editContact(contactId) {
             return;
         }
 
-        // Populate form
-        document.getElementById('editingContactId').value = contactId;
-        document.getElementById('contactName').value = contact.name;
-        document.getElementById('contactPhone').value = contact.phoneNumber;
+        // Populate form with null guards
+        document.getElementById('editingContactId').value = String(contactId);
+        document.getElementById('contactName').value = contact.name || '';
+        document.getElementById('contactPhone').value = contact.phoneNumber || '';
 
         // Set birthday if exists (need to convert MM-DD to date input format)
         if (contact.birthday) {
