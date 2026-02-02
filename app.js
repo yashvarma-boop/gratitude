@@ -705,7 +705,7 @@ function showScreen(screenName) {
         screen.classList.remove('active');
     });
 
-    // Update header
+    // Update header - use helper to safely set display (elements may not exist)
     const archiveBtn = document.getElementById('archiveBtn');
     const homeBtn = document.getElementById('homeBtn');
     const settingsBtn = document.getElementById('settingsBtn');
@@ -713,34 +713,38 @@ function showScreen(screenName) {
     const sendGratitudeBtn = document.getElementById('sendGratitudeBtn');
     const addressBookBtn = document.getElementById('addressBookBtn');
 
+    function setDisplay(el, value) {
+        if (el) el.style.display = value;
+    }
+
     // Show/hide header elements based on screen
     switch (screenName) {
         case 'welcome':
             document.getElementById('welcomeScreen').classList.add('active');
-            archiveBtn.style.display = 'flex';
-            homeBtn.style.display = 'none';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'flex');
+            setDisplay(homeBtn, 'none');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'entry':
             document.getElementById('entryScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             // Render the currently active view
             if (currentView === 'week') renderWeekView();
             else if (currentView === 'year') renderYearView();
@@ -748,40 +752,40 @@ function showScreen(screenName) {
             break;
         case 'settings':
             document.getElementById('settingsScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'none';
-            addressBookBtn.style.display = 'none';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'none');
+            setDisplay(addressBookBtn, 'none');
             break;
         case 'detail':
             document.getElementById('detailScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'flex';
-            shareBtn.onclick = shareCurrentEntry;
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'flex');
+            if (shareBtn) shareBtn.onclick = shareCurrentEntry;
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
             break;
         case 'addressBook':
             document.getElementById('addressBookScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'flex';
-            addressBookBtn.style.display = 'none';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'none');
             break;
         case 'sendGratitude':
             document.getElementById('sendGratitudeScreen').classList.add('active');
-            archiveBtn.style.display = 'none';
-            homeBtn.style.display = 'flex';
-            settingsBtn.style.display = 'flex';
-            shareBtn.style.display = 'none';
-            sendGratitudeBtn.style.display = 'none';
-            addressBookBtn.style.display = 'flex';
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'none');
+            setDisplay(addressBookBtn, 'flex');
             break;
     }
 
