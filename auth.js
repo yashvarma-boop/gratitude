@@ -206,6 +206,22 @@ async function signOut() {
     }
 }
 
+// ========== USER AVATAR ==========
+function updateUserAvatar(user) {
+    const avatarEl = document.getElementById('userAvatar');
+    if (!avatarEl) return;
+
+    if (user.photoURL) {
+        // User has a profile photo (e.g. from Google sign-in)
+        avatarEl.innerHTML = `<img src="${user.photoURL}" alt="Profile" referrerpolicy="no-referrer">`;
+    } else if (user.displayName) {
+        // Show initial
+        const initial = user.displayName.charAt(0).toUpperCase();
+        avatarEl.innerHTML = `<div class="user-avatar-initial">${initial}</div>`;
+    }
+    // Otherwise keep the default SVG icon
+}
+
 // ========== USER MENU ==========
 function toggleUserMenu() {
     const dropdown = document.getElementById('userMenuDropdown');
@@ -258,6 +274,9 @@ if (auth) {
         const emailEl = document.getElementById('userDisplayEmail');
         if (nameEl) nameEl.textContent = user.displayName || 'User';
         if (emailEl) emailEl.textContent = user.email || '';
+
+        // Update user avatar in header
+        updateUserAvatar(user);
 
         // Also save user name to localStorage for the greeting
         if (user.displayName) {

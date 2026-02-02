@@ -2952,30 +2952,48 @@ async function sendGratitudeMessage() {
     // Strip non-numeric characters for the phone number (keep leading +)
     const cleanPhone = recipientPhone.replace(/[^\d+]/g, '');
 
-    if (selectedChannel === 'whatsapp') {
-        // Remove leading + for wa.me format
-        const waPhone = cleanPhone.replace(/^\+/, '');
-        const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(message)}`;
-        window.open(waUrl, '_blank');
-        showToast('Opening WhatsApp...');
-    } else {
-        // Use sms: URI scheme
-        const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(message)}`;
-        window.location.href = smsUrl;
-        showToast('Opening SMS...');
+    // Disable send button while sending
+    const sendBtn = document.getElementById('sendMessageBtn');
+    if (sendBtn) sendBtn.disabled = true;
+
+    try {
+        const response = await fetch('/api/send-sms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                to: cleanPhone,
+                message: message,
+                channel: selectedChannel
+            })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to send message');
+        }
+
+        const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
+        showToast(`${channelLabel} sent successfully! 💌`);
+
+        // Clear the form
+        document.getElementById('recipientSelect').value = '';
+        document.getElementById('recipientPhone').value = '';
+        document.getElementById('recipientPhone').disabled = false;
+        document.getElementById('gratitudeMessage').value = '';
+        document.getElementById('messageCharCount').textContent = '0';
+
+        // Return to home after 2 seconds
+        setTimeout(() => {
+            goHome();
+        }, 2000);
+
+    } catch (error) {
+        console.error('Send message error:', error);
+        showToast('Failed to send: ' + (error.message || 'Unknown error'));
+    } finally {
+        if (sendBtn) sendBtn.disabled = false;
     }
-
-    // Clear the form
-    document.getElementById('recipientSelect').value = '';
-    document.getElementById('recipientPhone').value = '';
-    document.getElementById('recipientPhone').disabled = false;
-    document.getElementById('gratitudeMessage').value = '';
-    document.getElementById('messageCharCount').textContent = '0';
-
-    // Return to home after 2 seconds
-    setTimeout(() => {
-        goHome();
-    }, 2000);
 }
 
 // Helper function to escape HTML
