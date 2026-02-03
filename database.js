@@ -350,6 +350,166 @@ class GratitudeDB {
     async deleteContact(contactId) {
         await this._col('contacts').doc(String(contactId)).delete();
     }
+
+    // ========== AUDIT LOGGING ==========
+
+    // Log an action to the audit trail
+    async logAudit(action, details = {}) {
+        if (!this.uid) return; // Skip if not logged in
+        try {
+            await firestore.collection('audit_logs').add({
+                userId: this.uid,
+                userEmail: auth.currentUser?.email || 'unknown',
+                action,
+                details,
+                timestamp: Date.now(),
+                userAgent: navigator.userAgent || ''
+            });
+        } catch (err) {
+            console.error('logAudit error:', err);
+        }
+    }
+
+    // ========== USER PROFILE ==========
+
+    // Get or create user profile document
+    async getUserProfile() {
+        if (!this.uid) return null;
+        try {
+            const doc = await firestore.collection('users').doc(this.uid).get();
+            if (doc.exists) {
+                return { id: doc.id, ...doc.data() };
+            }
+            return null;
+        } catch (err) {
+            console.error('getUserProfile error:', err);
+            return null;
+        }
+    }
+
+    // Update user profile
+    async updateUserProfile(data) {
+        if (!this.uid) return;
+        try {
+            await firestore.collection('users').doc(this.uid).set({
+                ...data,
+                updatedAt: Date.now()
+            }, { merge: true });
+        } catch (err) {
+            console.error('updateUserProfile error:', err);
+        }
+    }
+
+    // Record login activity
+    async recordLogin() {
+        if (!this.uid) return;
+        try {
+            // Update user profile with last login
+            await firestore.collection('users').doc(this.uid).set({
+                lastLogin: Date.now(),
+                email: auth.currentUser?.email || '',
+                displayName: auth.currentUser?.displayName || ''
+            }, { merge: true });
+
+            // Log the login event
+            await this.logAudit('login', {});
+        } catch (err) {
+            console.error('recordLogin error:', err);
+        }
+    }
+
+    // ========== ADMIN FUNCTIONS ==========
+
+    // Check if current user is admin or superadmin
+    async isAdmin() {
+        const profile = await this.getUserProfile();
+        return profile && (profile.role === 'admin' || profile.role === 'superadmin');
+    }
+
+    // Check if current user is superadmin
+    async isSuperAdmin() {
+        const profile = await this.getUserProfile();
+        return profile && profile.role === 'superadmin';
+    }
+
+    // Get all users (admin only)
+    async getAllUsers() {
+        try {
+            const snapshot = await firestore.collection('users').get();
+            const users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            users.sort((a, b) => (a.email || '').localeCompare(b.email || ''));
+            return users;
+        } catch (err) {
+            console.error('getAllUsers error:', err);
+            return [];
+        }
+    }
+
+    // Get user by ID (admin only)
+    async getUserById(userId) {
+        try {
+            const doc = await firestore.collection('users').doc(userId).get();
+            if (!doc.exists) return null;
+            return { id: doc.id, ...doc.data() };
+        } catch (err) {
+            console.error('getUserById error:', err);
+            return null;
+        }
+    }
+
+    // Update another user's data (admin only)
+    async adminUpdateUser(userId, data) {
+        try {
+            await firestore.collection('users').doc(userId).set({
+                ...data,
+                updatedAt: Date.now()
+            }, { merge: true });
+            return true;
+        } catch (err) {
+            console.error('adminUpdateUser error:', err);
+            return false;
+        }
+    }
+
+    // Get audit logs (admin only)
+    async getAuditLogs(limit = 100, userId = null) {
+        try {
+            let query = firestore.collection('audit_logs');
+            if (userId) {
+                query = query.where('userId', '==', userId);
+            }
+            const snapshot = await query.get();
+            const logs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort by timestamp descending
+            logs.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            return logs.slice(0, limit);
+        } catch (err) {
+            console.error('getAuditLogs error:', err);
+            return [];
+        }
+    }
+
+    // Get user statistics (admin only)
+    async getUserStats(userId) {
+        try {
+            // Count sessions
+            const sessionsSnapshot = await firestore
+                .collection('users').doc(userId)
+                .collection('sessions').get();
+            const sessionCount = sessionsSnapshot.size;
+
+            // Count contacts
+            const contactsSnapshot = await firestore
+                .collection('users').doc(userId)
+                .collection('contacts').get();
+            const contactCount = contactsSnapshot.size;
+
+            return { sessionCount, contactCount };
+        } catch (err) {
+            console.error('getUserStats error:', err);
+            return { sessionCount: 0, contactCount: 0 };
+        }
+    }
 }
 
 // Initialize database (will be fully initialized after auth)

@@ -631,7 +631,7 @@ function previousDay() {
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
-    initializeSuggestions();
+    updateEntryFormForMode();
 }
 
 // Navigate to next day
@@ -640,7 +640,7 @@ function nextDay() {
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
-    initializeSuggestions();
+    updateEntryFormForMode();
 }
 
 // Navigate to specific date with offset (for history navigation)
@@ -651,7 +651,7 @@ function navigateToDate(date, offset) {
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
-    initializeSuggestions();
+    updateEntryFormForMode();
 }
 
 // Load entry for a specific date (or show blank form)
@@ -925,6 +925,7 @@ async function saveEntry() {
             // Update existing session
             const sessionId = editingSessionId;
             await db.updateSession(sessionId, items);
+            await db.logAudit('entry_update', { sessionId, mode: currentMode });
             showToast('✨ Entry updated successfully!');
 
             // Exit edit mode
@@ -948,6 +949,7 @@ async function saveEntry() {
 
             // Create new session for the selected date with current mode type
             await db.createSession(entryDate, items, currentMode);
+            await db.logAudit('entry_create', { date: entryDate, mode: currentMode });
 
             showToast('✨ Entry saved successfully!');
 
@@ -1327,6 +1329,7 @@ async function deleteEntry() {
     if (confirm('Are you sure you want to delete this entry?')) {
         try {
             await db.deleteSession(currentSessionId);
+            await db.logAudit('entry_delete', { sessionId: currentSessionId });
             showToast('Entry deleted');
             showScreen('history');
         } catch (error) {
@@ -2191,7 +2194,7 @@ function openEntryForDate(dateStr) {
     clearForm();
     updateDateDisplay();
     loadEntryForDate(currentEntryDate);
-    initializeSuggestions();
+    updateEntryFormForMode();
     showScreen('entry');
 }
 
@@ -2506,14 +2509,17 @@ async function deleteSelectedContacts() {
     if (!confirm(`Delete ${count} contact${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
 
     let deleted = 0;
+    const deletedIds = [];
     for (const cb of checked) {
         try {
             await db.deleteContact(cb.dataset.id);
+            deletedIds.push(cb.dataset.id);
             deleted++;
         } catch (err) {
             console.error('Error deleting contact:', cb.dataset.id, err);
         }
     }
+    await db.logAudit('contacts_bulk_delete', { count: deleted, contactIds: deletedIds });
     showToast(`Deleted ${deleted} contact${deleted > 1 ? 's' : ''}`);
     await loadContacts();
 }
@@ -2522,6 +2528,7 @@ async function deleteSelectedContacts() {
 async function deleteSingleContact(contactId) {
     try {
         await db.deleteContact(contactId);
+        await db.logAudit('contact_delete', { contactId });
         showToast('Contact deleted');
         await loadContacts();
     } catch (error) {
@@ -2656,10 +2663,12 @@ async function saveContact() {
         if (editingId) {
             // Update existing contact
             await db.updateContact(editingId, name, phone, birthday, currentContactPhoto);
+            await db.logAudit('contact_update', { contactId: editingId, name });
             showToast('Contact updated!');
         } else {
             // Add new contact
-            await db.addContact(name, phone, birthday, currentContactPhoto);
+            const newId = await db.addContact(name, phone, birthday, currentContactPhoto);
+            await db.logAudit('contact_create', { contactId: newId, name });
             showToast('Contact added!');
         }
 
@@ -3019,6 +3028,7 @@ async function sendGratitudeMessage() {
         }
 
         const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
+        await db.logAudit('message_send', { channel: selectedChannel, recipient: cleanPhone });
         showToast(`${channelLabel} sent successfully! 💌`);
 
         // Clear the form
@@ -3068,4 +3078,366 @@ function filterContacts() {
     if (countElement) {
         countElement.textContent = `${visibleCount} contact${visibleCount !== 1 ? 's' : ''} found`;
     }
+}
+
+// ========================================
+// ADMIN DASHBOARD FUNCTIONS
+// ========================================
+
+let adminUsersCache = [];
+let adminAuditLogsCache = [];
+let currentAdminUser = null; // User being viewed in detail modal
+
+// Show admin dashboard screen
+function showAdminDashboard() {
+    closeUserMenu();
+    showScreen('admin');
+    refreshAdminUsers();
+}
+
+// Switch admin tabs
+function switchAdminTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    document.querySelector(`.admin-tab[onclick*="${tab}"]`)?.classList.add('active');
+
+    // Show/hide content
+    document.getElementById('adminUsersTab').style.display = tab === 'users' ? 'block' : 'none';
+    document.getElementById('adminUsersTab').classList.toggle('active', tab === 'users');
+    document.getElementById('adminAuditTab').style.display = tab === 'audit' ? 'block' : 'none';
+    document.getElementById('adminAuditTab').classList.toggle('active', tab === 'audit');
+
+    if (tab === 'audit' && adminAuditLogsCache.length === 0) {
+        refreshAuditLogs();
+    }
+}
+
+// Get auth token for API calls
+async function getAuthToken() {
+    if (auth.currentUser) {
+        return await auth.currentUser.getIdToken();
+    }
+    return null;
+}
+
+// Make admin API call
+async function adminApiCall(action, targetUserId = null, data = null) {
+    const token = await getAuthToken();
+    if (!token) {
+        showToast('Not authenticated');
+        return null;
+    }
+
+    try {
+        const response = await fetch('/api/admin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ action, targetUserId, data })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            throw new Error(result.error || 'API error');
+        }
+
+        return result;
+    } catch (error) {
+        console.error('Admin API error:', error);
+        showToast(error.message || 'Admin API error');
+        return null;
+    }
+}
+
+// Refresh users list
+async function refreshAdminUsers() {
+    const listEl = document.getElementById('adminUsersList');
+    listEl.innerHTML = '<div class="admin-loading">Loading users...</div>';
+
+    const result = await adminApiCall('getUsers');
+
+    if (!result || !result.users) {
+        listEl.innerHTML = '<div class="admin-loading">Failed to load users</div>';
+        return;
+    }
+
+    adminUsersCache = result.users;
+    renderAdminUsers(result.users);
+
+    // Populate audit user filter
+    const userFilter = document.getElementById('auditUserFilter');
+    if (userFilter) {
+        userFilter.innerHTML = '<option value="">All Users</option>';
+        result.users.forEach(user => {
+            userFilter.innerHTML += `<option value="${user.id}">${escapeHtml(user.email)}</option>`;
+        });
+    }
+}
+
+// Render users list
+function renderAdminUsers(users) {
+    const listEl = document.getElementById('adminUsersList');
+
+    if (users.length === 0) {
+        listEl.innerHTML = '<div class="admin-loading">No users found</div>';
+        return;
+    }
+
+    listEl.innerHTML = users.map(user => {
+        const initial = (user.displayName || user.email || '?').charAt(0).toUpperCase();
+        const roleClass = `role-${user.role || 'user'}`;
+        const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleDateString() : 'Never';
+
+        return `
+            <div class="admin-user-row" onclick="showUserDetail('${user.id}')">
+                <div class="admin-user-avatar">${initial}</div>
+                <div class="admin-user-info">
+                    <div class="admin-user-name">${escapeHtml(user.displayName || 'No Name')}</div>
+                    <div class="admin-user-email">${escapeHtml(user.email)}</div>
+                </div>
+                <div class="admin-user-meta">
+                    <div class="admin-user-stat">
+                        <div class="admin-user-stat-value">${user.sessionCount || 0}</div>
+                        <div class="admin-user-stat-label">Entries</div>
+                    </div>
+                    <div class="admin-user-stat">
+                        <div class="admin-user-stat-value">${user.contactCount || 0}</div>
+                        <div class="admin-user-stat-label">Contacts</div>
+                    </div>
+                    <div class="admin-user-badges">
+                        <span class="admin-badge ${roleClass}">${user.role || 'user'}</span>
+                        ${user.suspended ? '<span class="admin-badge suspended">Suspended</span>' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter admin users
+function filterAdminUsers() {
+    const searchTerm = document.getElementById('adminUserSearch').value.toLowerCase().trim();
+
+    const filtered = adminUsersCache.filter(user => {
+        const name = (user.displayName || '').toLowerCase();
+        const email = (user.email || '').toLowerCase();
+        return name.includes(searchTerm) || email.includes(searchTerm);
+    });
+
+    renderAdminUsers(filtered);
+}
+
+// Show user detail modal
+function showUserDetail(userId) {
+    const user = adminUsersCache.find(u => u.id === userId);
+    if (!user) return;
+
+    currentAdminUser = user;
+
+    const modal = document.getElementById('userDetailModal');
+    const titleEl = document.getElementById('userDetailTitle');
+    const contentEl = document.getElementById('userDetailContent');
+    const actionsEl = document.getElementById('userDetailActions');
+
+    titleEl.textContent = user.displayName || user.email || 'User Details';
+
+    const lastLogin = user.lastLogin ? new Date(user.lastLogin).toLocaleString() : 'Never';
+    const createdAt = user.createdAt ? new Date(user.createdAt).toLocaleString() : 'Unknown';
+
+    contentEl.innerHTML = `
+        <div class="user-detail-item">
+            <div class="user-detail-label">Email</div>
+            <div class="user-detail-value">${escapeHtml(user.email)}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Display Name</div>
+            <div class="user-detail-value">${escapeHtml(user.displayName || 'Not set')}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">User ID</div>
+            <div class="user-detail-value" style="font-size: 0.75rem; word-break: break-all;">${user.id}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Role</div>
+            <div class="user-detail-value">
+                <select class="role-select" id="userRoleSelect" onchange="adminSetRole('${user.id}', this.value)">
+                    <option value="user" ${user.role === 'user' || !user.role ? 'selected' : ''}>User</option>
+                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    <option value="superadmin" ${user.role === 'superadmin' ? 'selected' : ''}>Superadmin</option>
+                </select>
+            </div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Status</div>
+            <div class="user-detail-value ${user.suspended ? 'suspended' : ''}">${user.suspended ? 'Suspended' : 'Active'}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Last Login</div>
+            <div class="user-detail-value">${lastLogin}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Created</div>
+            <div class="user-detail-value">${createdAt}</div>
+        </div>
+        <div class="user-detail-item">
+            <div class="user-detail-label">Statistics</div>
+            <div class="user-detail-value">${user.sessionCount || 0} entries, ${user.contactCount || 0} contacts</div>
+        </div>
+    `;
+
+    // Check if this is the current user (can't suspend/delete self)
+    const isSelf = auth.currentUser && auth.currentUser.uid === user.id;
+
+    actionsEl.innerHTML = `
+        <button class="admin-action-btn primary" onclick="adminResetPassword('${user.id}')">Reset Password</button>
+        <button class="admin-action-btn warning" onclick="adminSuspendUser('${user.id}', ${!user.suspended})" ${isSelf ? 'disabled title="Cannot suspend yourself"' : ''}>
+            ${user.suspended ? 'Unsuspend' : 'Suspend'}
+        </button>
+        <button class="admin-action-btn danger" onclick="adminDeleteUser('${user.id}')" ${isSelf ? 'disabled title="Cannot delete yourself"' : ''}>Delete User</button>
+    `;
+
+    modal.style.display = 'block';
+}
+
+// Close user detail modal
+function closeUserDetailModal() {
+    document.getElementById('userDetailModal').style.display = 'none';
+    currentAdminUser = null;
+}
+
+// Admin: Reset password
+async function adminResetPassword(userId) {
+    const user = adminUsersCache.find(u => u.id === userId);
+    if (!user) return;
+
+    const result = await adminApiCall('resetPassword', userId);
+
+    if (result && result.success) {
+        showToast(`Password reset link generated for ${user.email}`);
+        // Show the link in an alert so admin can copy it
+        if (result.resetLink) {
+            alert(`Password reset link for ${user.email}:\n\n${result.resetLink}\n\nCopy and send this link to the user.`);
+        }
+    }
+}
+
+// Admin: Suspend/unsuspend user
+async function adminSuspendUser(userId, suspend) {
+    const user = adminUsersCache.find(u => u.id === userId);
+    if (!user) return;
+
+    const action = suspend ? 'suspend' : 'unsuspend';
+    if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
+
+    const result = await adminApiCall('suspendUser', userId, { suspend });
+
+    if (result && result.success) {
+        showToast(result.message);
+        closeUserDetailModal();
+        refreshAdminUsers();
+    }
+}
+
+// Admin: Delete user
+async function adminDeleteUser(userId) {
+    const user = adminUsersCache.find(u => u.id === userId);
+    if (!user) return;
+
+    if (!confirm(`Are you sure you want to DELETE ${user.email}?\n\nThis will permanently delete:\n- All their journal entries\n- All their contacts\n- Their account\n\nThis action CANNOT be undone!`)) return;
+
+    // Double confirm for deletion
+    if (!confirm(`FINAL CONFIRMATION: Delete ${user.email} and all their data?`)) return;
+
+    const result = await adminApiCall('deleteUser', userId);
+
+    if (result && result.success) {
+        showToast(result.message);
+        closeUserDetailModal();
+        refreshAdminUsers();
+    }
+}
+
+// Admin: Set user role
+async function adminSetRole(userId, newRole) {
+    const user = adminUsersCache.find(u => u.id === userId);
+    if (!user) return;
+
+    const result = await adminApiCall('setRole', userId, { role: newRole });
+
+    if (result && result.success) {
+        showToast(result.message);
+        // Update cache
+        user.role = newRole;
+    } else {
+        // Reset select to original value
+        const select = document.getElementById('userRoleSelect');
+        if (select) select.value = user.role || 'user';
+    }
+}
+
+// Refresh audit logs
+async function refreshAuditLogs() {
+    const listEl = document.getElementById('adminAuditList');
+    listEl.innerHTML = '<div class="admin-loading">Loading audit logs...</div>';
+
+    const result = await adminApiCall('getAuditLogs', null, { limit: 200 });
+
+    if (!result || !result.logs) {
+        listEl.innerHTML = '<div class="admin-loading">Failed to load audit logs</div>';
+        return;
+    }
+
+    adminAuditLogsCache = result.logs;
+    renderAuditLogs(result.logs);
+}
+
+// Render audit logs
+function renderAuditLogs(logs) {
+    const listEl = document.getElementById('adminAuditList');
+
+    if (logs.length === 0) {
+        listEl.innerHTML = '<div class="admin-loading">No audit logs found</div>';
+        return;
+    }
+
+    listEl.innerHTML = logs.map(log => {
+        const time = log.timestamp ? new Date(log.timestamp).toLocaleString() : 'Unknown';
+        const actionClass = log.action?.startsWith('admin_') ? 'admin_action' : log.action || '';
+        const details = log.details ? JSON.stringify(log.details) : '';
+
+        return `
+            <div class="admin-audit-row">
+                <div class="admin-audit-time">${time}</div>
+                <div class="admin-audit-user">${escapeHtml(log.userEmail || 'Unknown')}</div>
+                <div class="admin-audit-action ${actionClass}">${log.action || 'unknown'}</div>
+                <div class="admin-audit-details" title="${escapeHtml(details)}">${escapeHtml(details)}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Filter audit logs
+function filterAuditLogs() {
+    const userFilter = document.getElementById('auditUserFilter').value;
+    const actionFilter = document.getElementById('auditActionFilter').value;
+
+    const filtered = adminAuditLogsCache.filter(log => {
+        const matchesUser = !userFilter || log.userId === userFilter;
+        const matchesAction = !actionFilter || (log.action && log.action.startsWith(actionFilter));
+        return matchesUser && matchesAction;
+    });
+
+    renderAuditLogs(filtered);
+}
+
+// Check and show admin button (called from auth.js after login)
+async function checkAndShowAdminButton() {
+    const adminBtn = document.getElementById('adminDashboardBtn');
+    if (!adminBtn) return;
+
+    const isAdmin = await db.isAdmin();
+    adminBtn.style.display = isAdmin ? 'block' : 'none';
 }

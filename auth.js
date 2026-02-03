@@ -199,6 +199,7 @@ async function resetPassword() {
 // ========== SIGN OUT ==========
 async function signOut() {
     try {
+        await db.logAudit('logout', {});
         await auth.signOut();
         closeUserMenu();
     } catch (error) {
@@ -269,6 +270,22 @@ if (auth) {
         // Initialize database with user ID
         await db.init(user.uid);
 
+        // Check if user is suspended
+        const profile = await db.getUserProfile();
+        if (profile && profile.suspended) {
+            showAuthError('Your account has been suspended. Please contact support.');
+            await auth.signOut();
+            return;
+        }
+
+        // Set up superadmin for yash@yashvarma.com (first time only)
+        if (user.email === 'yash@yashvarma.com' && (!profile || profile.role !== 'superadmin')) {
+            await db.updateUserProfile({ role: 'superadmin' });
+        }
+
+        // Record login activity
+        await db.recordLogin();
+
         // Update user menu
         const nameEl = document.getElementById('userDisplayName');
         const emailEl = document.getElementById('userDisplayEmail');
@@ -288,6 +305,9 @@ if (auth) {
 
         // Initialize the app (same logic as the old DOMContentLoaded)
         await initializeApp();
+
+        // Check and show admin dashboard button if user is admin
+        await checkAndShowAdminButton();
     } else {
         currentUser = null;
         showAuthScreen();

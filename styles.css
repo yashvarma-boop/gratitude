@@ -3364,3 +3364,422 @@ header {
         font-size: 1.75rem;
     }
 }
+
+/* ========================================
+   ADMIN DASHBOARD
+   ======================================== */
+.admin-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: var(--spacing-lg);
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-lg);
+    flex-wrap: wrap;
+    gap: var(--spacing-md);
+}
+
+.admin-tabs {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.admin-tab {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.admin-tab:hover {
+    background: rgba(155, 175, 149, 0.2);
+}
+
+.admin-tab.active {
+    background: var(--accent-sage);
+    color: white;
+}
+
+.admin-tab-content {
+    display: none;
+}
+
+.admin-tab-content.active {
+    display: block;
+}
+
+.admin-toolbar {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+    flex-wrap: wrap;
+}
+
+.admin-toolbar .setting-input {
+    flex: 1;
+    min-width: 200px;
+}
+
+.admin-toolbar select.setting-input {
+    flex: 0 0 auto;
+    min-width: 180px;
+}
+
+.admin-users-list {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+}
+
+.admin-loading {
+    padding: var(--spacing-xl);
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.admin-user-row {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-md);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    transition: all var(--transition);
+    cursor: pointer;
+}
+
+.admin-user-row:hover {
+    background: rgba(155, 175, 149, 0.1);
+}
+
+.admin-user-row:last-child {
+    border-bottom: none;
+}
+
+.admin-user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--accent-sage);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 1rem;
+    margin-right: var(--spacing-md);
+    flex-shrink: 0;
+}
+
+.admin-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-user-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 2px;
+}
+
+.admin-user-email {
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-user-meta {
+    display: flex;
+    gap: var(--spacing-lg);
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.admin-user-stat {
+    text-align: center;
+}
+
+.admin-user-stat-value {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.admin-user-stat-label {
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+
+.admin-user-badges {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+.admin-badge {
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.admin-badge.role-superadmin {
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #000;
+}
+
+.admin-badge.role-admin {
+    background: var(--accent-purple);
+    color: white;
+}
+
+.admin-badge.role-user {
+    background: rgba(0, 0, 0, 0.1);
+    color: var(--text-secondary);
+}
+
+.admin-badge.suspended {
+    background: #e74c3c;
+    color: white;
+}
+
+/* Audit Log Styles */
+.admin-audit-list {
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    box-shadow: var(--shadow-card);
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.admin-audit-row {
+    display: flex;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    font-size: 0.875rem;
+}
+
+.admin-audit-row:last-child {
+    border-bottom: none;
+}
+
+.admin-audit-time {
+    flex: 0 0 140px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+}
+
+.admin-audit-user {
+    flex: 0 0 180px;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.admin-audit-action {
+    flex: 0 0 150px;
+    font-weight: 500;
+}
+
+.admin-audit-action.login { color: #27ae60; }
+.admin-audit-action.logout { color: #95a5a6; }
+.admin-audit-action.entry_create { color: #3498db; }
+.admin-audit-action.entry_update { color: #9b59b6; }
+.admin-audit-action.entry_delete { color: #e74c3c; }
+.admin-audit-action.contact_create { color: #1abc9c; }
+.admin-audit-action.contact_update { color: #f39c12; }
+.admin-audit-action.contact_delete { color: #e67e22; }
+.admin-audit-action.message_send { color: #2980b9; }
+.admin-audit-action.admin_action { color: #c0392b; font-weight: 700; }
+
+.admin-audit-details {
+    flex: 1;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* User Detail Modal */
+.modal-dialog {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-soft);
+    max-width: 500px;
+    width: 90%;
+    max-height: 90vh;
+    overflow: hidden;
+    z-index: 1001;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.modal-header h3 {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.close-modal-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all var(--transition);
+}
+
+.close-modal-btn:hover {
+    color: var(--text-primary);
+}
+
+.modal-body {
+    padding: var(--spacing-lg);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+}
+
+.user-detail-item {
+    margin-bottom: var(--spacing-md);
+}
+
+.user-detail-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+
+.user-detail-value {
+    font-size: 1rem;
+    color: var(--text-primary);
+}
+
+.user-detail-value.suspended {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.admin-action-btn {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.admin-action-btn.primary {
+    background: var(--accent-sage);
+    color: white;
+}
+
+.admin-action-btn.primary:hover {
+    background: #8AA585;
+}
+
+.admin-action-btn.warning {
+    background: #f39c12;
+    color: white;
+}
+
+.admin-action-btn.warning:hover {
+    background: #e67e22;
+}
+
+.admin-action-btn.danger {
+    background: #e74c3c;
+    color: white;
+}
+
+.admin-action-btn.danger:hover {
+    background: #c0392b;
+}
+
+.admin-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Admin Modal Overlay */
+#userDetailModal {
+    background: rgba(0, 0, 0, 0.5);
+}
+
+/* Role select in modal */
+.role-select {
+    padding: 8px 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--radius-sm);
+    font-size: 0.875rem;
+    background: white;
+    cursor: pointer;
+}
+
+/* Admin Responsive */
+@media (max-width: 768px) {
+    .admin-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-user-row {
+        flex-wrap: wrap;
+    }
+
+    .admin-user-meta {
+        width: 100%;
+        margin-top: var(--spacing-sm);
+        justify-content: flex-start;
+    }
+
+    .admin-audit-row {
+        flex-wrap: wrap;
+    }
+
+    .admin-audit-time,
+    .admin-audit-user,
+    .admin-audit-action {
+        flex: 0 0 100%;
+        margin-bottom: 4px;
+    }
+
+    .admin-audit-details {
+        flex: 0 0 100%;
+    }
+}
