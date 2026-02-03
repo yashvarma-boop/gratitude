@@ -278,10 +278,24 @@ if (auth) {
             return;
         }
 
+        // Ensure user profile exists with basic info (created on every login to keep data fresh)
+        const profileUpdate = {
+            email: user.email || '',
+            displayName: user.displayName || ''
+        };
+
         // Set up superadmin for yash@yashvarma.com (first time only)
         if (user.email === 'yash@yashvarma.com' && (!profile || profile.role !== 'superadmin')) {
-            await db.updateUserProfile({ role: 'superadmin' });
+            profileUpdate.role = 'superadmin';
+            console.log('Setting superadmin role for:', user.email);
         }
+
+        // Set createdAt for new users
+        if (!profile) {
+            profileUpdate.createdAt = Date.now();
+        }
+
+        await db.updateUserProfile(profileUpdate);
 
         // Record login activity
         await db.recordLogin();
@@ -307,6 +321,7 @@ if (auth) {
         await initializeApp();
 
         // Check and show admin dashboard button if user is admin
+        console.log('Checking admin status...');
         await checkAndShowAdminButton();
     } else {
         currentUser = null;

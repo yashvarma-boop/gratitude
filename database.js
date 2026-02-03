@@ -423,6 +423,8 @@ class GratitudeDB {
     // Check if current user is admin or superadmin
     async isAdmin() {
         const profile = await this.getUserProfile();
+        console.log('isAdmin check - profile:', profile);
+        console.log('isAdmin check - role:', profile?.role);
         return profile && (profile.role === 'admin' || profile.role === 'superadmin');
     }
 

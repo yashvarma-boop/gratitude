@@ -3436,8 +3436,16 @@ function filterAuditLogs() {
 // Check and show admin button (called from auth.js after login)
 async function checkAndShowAdminButton() {
     const adminBtn = document.getElementById('adminDashboardBtn');
-    if (!adminBtn) return;
+    if (!adminBtn) {
+        console.log('Admin button element not found');
+        return;
+    }
 
     const isAdmin = await db.isAdmin();
+    console.log('User isAdmin:', isAdmin);
     adminBtn.style.display = isAdmin ? 'block' : 'none';
+
+    if (isAdmin) {
+        console.log('Admin Dashboard button is now visible');
+    }
 }
