@@ -454,7 +454,15 @@
                             </div>
                             <div class="contacts-count" id="contactsCount">0 contacts</div>
                         </div>
-                        <div class="contacts-grid" id="contactsList"></div>
+                        <div class="contacts-bulk-bar" id="contactsBulkBar" style="display:none;">
+                            <label class="contact-select-all-label">
+                                <input type="checkbox" id="selectAllContacts" onchange="toggleSelectAllContacts()">
+                                <span>Select All</span>
+                            </label>
+                            <span id="selectedCount">0 selected</span>
+                            <button class="bulk-delete-btn" onclick="deleteSelectedContacts()">Delete Selected</button>
+                        </div>
+                        <div class="contacts-list" id="contactsList"></div>
                     </div>
                 </div>
             </div>

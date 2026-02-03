@@ -53,10 +53,19 @@ module.exports = async (req, res) => {
         const isWhatsApp = channel === 'whatsapp';
 
         // Build message options
+        let fromNumber;
+        if (isWhatsApp) {
+            // Ensure WhatsApp from number always has the whatsapp: prefix
+            const waNum = (twilioWhatsAppNumber || '+14155238886').replace(/^whatsapp:/, '');
+            fromNumber = `whatsapp:${waNum}`;
+        } else {
+            fromNumber = twilioPhoneNumber;
+        }
+
         const messageOptions = {
             body: message,
             to: isWhatsApp ? `whatsapp:${formattedPhone}` : formattedPhone,
-            from: isWhatsApp ? twilioWhatsAppNumber : twilioPhoneNumber
+            from: fromNumber
         };
 
         // Send message

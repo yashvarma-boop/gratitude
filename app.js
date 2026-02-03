@@ -2399,14 +2399,25 @@ async function loadContacts() {
     }
     const contactsList = document.getElementById('contactsList');
     const countElement = document.getElementById('contactsCount');
+    const bulkBar = document.getElementById('contactsBulkBar');
 
     // Update contact count
     if (countElement) {
         countElement.textContent = `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`;
     }
 
+    // Show/hide bulk action bar
+    if (bulkBar) {
+        bulkBar.style.display = contacts.length > 0 ? 'flex' : 'none';
+    }
+
+    // Reset select all
+    const selectAllCb = document.getElementById('selectAllContacts');
+    if (selectAllCb) selectAllCb.checked = false;
+    updateSelectedCount();
+
     if (contacts.length === 0) {
-        contactsList.innerHTML = '<p class="empty-state-text">No contacts yet. Add your first contact!</p>';
+        contactsList.innerHTML = '<p class="empty-state-text" style="padding: var(--spacing-lg); text-align: center;">No contacts yet. Add your first contact!</p>';
         return;
     }
 
@@ -2417,25 +2428,21 @@ async function loadContacts() {
     contactsList.innerHTML = '';
     contacts.forEach(contact => {
         try {
-            // Guard against contacts with missing data
             const name = contact.name || 'Unknown';
             const phone = contact.phoneNumber || '';
             const contactId = contact.id || '';
+            if (!contactId) return;
 
-            if (!contactId) return; // Skip contacts without an ID
+            const row = document.createElement('div');
+            row.className = 'contact-row';
+            row.dataset.name = name;
+            row.dataset.phone = phone;
+            row.dataset.contactId = contactId;
 
-            const contactCard = document.createElement('div');
-            contactCard.className = 'contact-card';
-            contactCard.dataset.name = name;
-            contactCard.dataset.phone = phone;
-
-            // Check if it's their birthday today
             const isBirthdayToday = contact.birthday === todayKey;
-            if (isBirthdayToday) {
-                contactCard.classList.add('birthday-today');
-            }
+            if (isBirthdayToday) row.classList.add('birthday-today');
 
-            // Format birthday for display
+            // Format birthday
             let birthdayDisplay = '';
             if (contact.birthday) {
                 const [month, day] = contact.birthday.split('-');
@@ -2443,33 +2450,84 @@ async function loadContacts() {
                 birthdayDisplay = `${monthNames[parseInt(month) - 1]} ${parseInt(day)}`;
             }
 
-            // Contact photo or placeholder
             const initial = name.charAt(0).toUpperCase();
-            const photoHTML = contact.photo
-                ? `<img src="${contact.photo}" class="contact-card-photo" alt="${escapeHtml(name)}">`
-                : `<div class="contact-card-photo-placeholder">${initial}</div>`;
+            const avatarHTML = contact.photo
+                ? `<div class="contact-row-avatar"><img src="${contact.photo}" alt="${escapeHtml(name)}"></div>`
+                : `<div class="contact-row-avatar-placeholder">${initial}</div>`;
 
-            contactCard.innerHTML = `
-                <div class="contact-card-header">
-                    ${photoHTML}
-                    ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
+            row.innerHTML = `
+                <input type="checkbox" class="contact-row-checkbox" data-id="${contactId}" onchange="updateSelectedCount()">
+                ${avatarHTML}
+                <div class="contact-row-info">
+                    <div class="contact-row-name">${escapeHtml(name)}</div>
+                    <div class="contact-row-phone">${escapeHtml(phone)}</div>
+                    ${birthdayDisplay ? `<div class="contact-row-birthday">🎂 ${birthdayDisplay}</div>` : ''}
                 </div>
-                <div class="contact-card-body">
-                    <div class="contact-card-name">${escapeHtml(name)}</div>
-                    <div class="contact-card-phone">${escapeHtml(phone)}</div>
-                    ${birthdayDisplay ? `<div class="contact-card-birthday">🎂 ${birthdayDisplay}</div>` : ''}
-                </div>
-                <div class="contact-card-actions">
-                    ${isBirthdayToday ? `<button class="send-birthday-btn-card" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(name)}', '${escapeHtml(phone)}')" title="Send birthday message">💬 Send</button>` : ''}
+                ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
+                <div class="contact-row-actions">
+                    ${isBirthdayToday ? `<button class="contact-action-btn" onclick="event.stopPropagation(); sendBirthdayMessage('${escapeHtml(name)}', '${escapeHtml(phone)}')" title="Send birthday message">💬</button>` : ''}
                     <button class="contact-action-btn edit" onclick="event.stopPropagation(); editContact('${contactId}')" title="Edit">✏️</button>
-                    <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteContactConfirm('${contactId}')" title="Delete">🗑️</button>
+                    <button class="contact-action-btn delete" onclick="event.stopPropagation(); deleteSingleContact('${contactId}')" title="Delete">🗑️</button>
                 </div>
             `;
-            contactsList.appendChild(contactCard);
+            contactsList.appendChild(row);
         } catch (err) {
             console.error('Error rendering contact:', contact, err);
         }
     });
+}
+
+// Update selected count display
+function updateSelectedCount() {
+    const checked = document.querySelectorAll('.contact-row-checkbox:checked');
+    const countEl = document.getElementById('selectedCount');
+    if (countEl) countEl.textContent = `${checked.length} selected`;
+}
+
+// Select all / deselect all
+function toggleSelectAllContacts() {
+    const selectAll = document.getElementById('selectAllContacts');
+    document.querySelectorAll('.contact-row-checkbox').forEach(cb => {
+        if (cb.closest('.contact-row').style.display !== 'none') {
+            cb.checked = selectAll.checked;
+        }
+    });
+    updateSelectedCount();
+}
+
+// Bulk delete selected contacts
+async function deleteSelectedContacts() {
+    const checked = document.querySelectorAll('.contact-row-checkbox:checked');
+    if (checked.length === 0) {
+        showToast('No contacts selected');
+        return;
+    }
+    const count = checked.length;
+    if (!confirm(`Delete ${count} contact${count > 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+    let deleted = 0;
+    for (const cb of checked) {
+        try {
+            await db.deleteContact(cb.dataset.id);
+            deleted++;
+        } catch (err) {
+            console.error('Error deleting contact:', cb.dataset.id, err);
+        }
+    }
+    showToast(`Deleted ${deleted} contact${deleted > 1 ? 's' : ''}`);
+    await loadContacts();
+}
+
+// Delete single contact
+async function deleteSingleContact(contactId) {
+    try {
+        await db.deleteContact(contactId);
+        showToast('Contact deleted');
+        await loadContacts();
+    } catch (error) {
+        console.error('Error deleting contact:', error);
+        showToast('Error deleting contact: ' + (error.message || 'Unknown error'));
+    }
 }
 
 // Contact photo functions
@@ -2610,19 +2668,6 @@ async function saveContact() {
     } catch (error) {
         console.error('Error saving contact:', error);
         showToast('Error saving contact: ' + (error.message || 'Unknown error'));
-    }
-}
-
-async function deleteContactConfirm(contactId) {
-    if (confirm('Are you sure you want to delete this contact?')) {
-        try {
-            await db.deleteContact(contactId);
-            showToast('Contact deleted');
-            await loadContacts();
-        } catch (error) {
-            console.error('Error deleting contact:', error);
-            showToast('Error deleting contact: ' + (error.message || 'Unknown error'));
-        }
     }
 }
 
@@ -3006,7 +3051,7 @@ function escapeHtml(text) {
 // Filter contacts by search term
 function filterContacts() {
     const searchTerm = document.getElementById('contactSearchInput').value.toLowerCase().trim();
-    const contactItems = document.querySelectorAll('.contact-card');
+    const contactItems = document.querySelectorAll('.contact-row');
     let visibleCount = 0;
 
     contactItems.forEach(item => {
