@@ -43,8 +43,8 @@ module.exports = async (req, res) => {
         // Initialize Twilio client
         const client = twilio(accountSid, authToken);
 
-        // Format phone number (ensure it has country code)
-        let formattedPhone = to.trim();
+        // Clean phone number: keep only digits and leading +
+        let formattedPhone = to.trim().replace(/[^\d+]/g, '');
         if (!formattedPhone.startsWith('+')) {
             // Assume US number if no country code
             formattedPhone = `+1${formattedPhone.replace(/\D/g, '')}`;
@@ -53,11 +53,29 @@ module.exports = async (req, res) => {
         const isWhatsApp = channel === 'whatsapp';
 
         // Build message options
+        let fromNumber;
+        if (isWhatsApp) {
+            // For WhatsApp, use the dedicated WhatsApp number
+            // Strip any existing whatsapp: prefix, then re-add it
+            // If TWILIO_WHATSAPP_NUMBER is not set, use Twilio sandbox
+            const rawWaNum = process.env.TWILIO_WHATSAPP_NUMBER || '+14155238886';
+            const cleanWaNum = rawWaNum.replace(/^whatsapp:/, '').trim();
+            fromNumber = `whatsapp:${cleanWaNum}`;
+        } else {
+            // For SMS, use the regular Twilio phone number
+            // Strip any accidental whatsapp: prefix
+            fromNumber = twilioPhoneNumber.replace(/^whatsapp:/, '').trim();
+        }
+
+        const toNumber = isWhatsApp ? `whatsapp:${formattedPhone}` : formattedPhone;
+
         const messageOptions = {
             body: message,
-            to: isWhatsApp ? `whatsapp:${formattedPhone}` : formattedPhone,
-            from: isWhatsApp ? twilioWhatsAppNumber : twilioPhoneNumber
+            to: toNumber,
+            from: fromNumber
         };
+
+        console.log('Sending message:', { to: toNumber, from: fromNumber, channel });
 
         // Send message
         const twilioMessage = await client.messages.create(messageOptions);
@@ -78,6 +96,8 @@ module.exports = async (req, res) => {
         let errorMessage = 'Failed to send message';
         if (error.code === 21211) {
             errorMessage = 'Invalid phone number';
+        } else if (error.code === 21606) {
+            errorMessage = 'Channel mismatch: check that TWILIO_WHATSAPP_NUMBER is set correctly in Vercel env vars (should be your WhatsApp-enabled Twilio number, e.g. +14155238886)';
         } else if (error.code === 21608) {
             errorMessage = 'Phone number is not verified (Twilio trial account)';
         } else if (error.code === 63007) {

@@ -136,6 +136,13 @@
                     </svg>
                     <span>Send</span>
                 </button>
+                <button id="adminHeaderBtn" class="header-nav-btn" onclick="showAdminDashboard()">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z"/>
+                        <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                    <span>Admin</span>
+                </button>
                 <button id="settingsBtn" class="header-nav-btn" onclick="showSettings()">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="12" cy="12" r="3"/>
@@ -158,6 +165,7 @@
                             <div id="userDisplayName" class="user-menu-name">User</div>
                             <div id="userDisplayEmail" class="user-menu-email">email</div>
                         </div>
+                        <button id="adminDashboardBtn" class="user-menu-item" onclick="showAdminDashboard()" style="display:none;">Admin Dashboard</button>
                         <button class="user-menu-item" onclick="signOut()">Sign Out</button>
                     </div>
                 </div>
@@ -454,7 +462,15 @@
                             </div>
                             <div class="contacts-count" id="contactsCount">0 contacts</div>
                         </div>
-                        <div class="contacts-grid" id="contactsList"></div>
+                        <div class="contacts-bulk-bar" id="contactsBulkBar" style="display:none;">
+                            <label class="contact-select-all-label">
+                                <input type="checkbox" id="selectAllContacts" onchange="toggleSelectAllContacts()">
+                                <span>Select All</span>
+                            </label>
+                            <span id="selectedCount">0 selected</span>
+                            <button class="bulk-delete-btn" onclick="deleteSelectedContacts()">Delete Selected</button>
+                        </div>
+                        <div class="contacts-list" id="contactsList"></div>
                     </div>
                 </div>
             </div>
@@ -497,6 +513,72 @@
 
                         <button class="primary-btn" id="sendMessageBtn" onclick="sendGratitudeMessage()">Send SMS 💌</button>
                         <button class="secondary-btn" onclick="goHome()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard Screen -->
+            <div id="adminScreen" class="screen">
+                <div class="admin-container">
+                    <div class="admin-header">
+                        <h2 class="settings-title">Admin Dashboard</h2>
+                        <div class="admin-tabs">
+                            <button class="admin-tab active" onclick="switchAdminTab('users')">Users</button>
+                            <button class="admin-tab" onclick="switchAdminTab('audit')">Audit Log</button>
+                        </div>
+                    </div>
+
+                    <!-- Users Tab -->
+                    <div id="adminUsersTab" class="admin-tab-content active">
+                        <div class="admin-toolbar">
+                            <input type="text" id="adminUserSearch" class="setting-input" placeholder="Search users..." oninput="filterAdminUsers()">
+                            <button class="secondary-btn" onclick="refreshAdminUsers()">Refresh</button>
+                        </div>
+                        <div class="admin-users-list" id="adminUsersList">
+                            <div class="admin-loading">Loading users...</div>
+                        </div>
+                    </div>
+
+                    <!-- Audit Log Tab -->
+                    <div id="adminAuditTab" class="admin-tab-content" style="display:none;">
+                        <div class="admin-toolbar">
+                            <select id="auditUserFilter" class="setting-input" onchange="filterAuditLogs()">
+                                <option value="">All Users</option>
+                            </select>
+                            <select id="auditActionFilter" class="setting-input" onchange="filterAuditLogs()">
+                                <option value="">All Actions</option>
+                                <option value="login">Login</option>
+                                <option value="logout">Logout</option>
+                                <option value="entry_create">Entry Create</option>
+                                <option value="entry_update">Entry Update</option>
+                                <option value="entry_delete">Entry Delete</option>
+                                <option value="contact_create">Contact Create</option>
+                                <option value="contact_update">Contact Update</option>
+                                <option value="contact_delete">Contact Delete</option>
+                                <option value="message_send">Message Send</option>
+                                <option value="admin_">Admin Actions</option>
+                            </select>
+                            <button class="secondary-btn" onclick="refreshAuditLogs()">Refresh</button>
+                        </div>
+                        <div class="admin-audit-list" id="adminAuditList">
+                            <div class="admin-loading">Loading audit logs...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- User Detail Modal -->
+            <div id="userDetailModal" class="modal" style="display:none;">
+                <div class="modal-dialog">
+                    <div class="modal-header">
+                        <h3 id="userDetailTitle">User Details</h3>
+                        <button class="close-modal-btn" onclick="closeUserDetailModal()">×</button>
+                    </div>
+                    <div class="modal-body" id="userDetailContent">
+                        <!-- User details will be populated here -->
+                    </div>
+                    <div class="modal-footer" id="userDetailActions">
+                        <!-- Action buttons will be populated here -->
                     </div>
                 </div>
             </div>
