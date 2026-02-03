@@ -3152,28 +3152,40 @@ async function adminApiCall(action, targetUserId = null, data = null) {
     }
 }
 
-// Refresh users list
+// Refresh users list (using client-side Firestore)
 async function refreshAdminUsers() {
     const listEl = document.getElementById('adminUsersList');
     listEl.innerHTML = '<div class="admin-loading">Loading users...</div>';
 
-    const result = await adminApiCall('getUsers');
+    try {
+        const users = await db.getAllUsers();
 
-    if (!result || !result.users) {
-        listEl.innerHTML = '<div class="admin-loading">Failed to load users</div>';
-        return;
-    }
+        // Get session and contact counts for each user
+        for (const user of users) {
+            try {
+                const stats = await db.getUserStats(user.id);
+                user.sessionCount = stats.sessionCount || 0;
+                user.contactCount = stats.contactCount || 0;
+            } catch (e) {
+                user.sessionCount = 0;
+                user.contactCount = 0;
+            }
+        }
 
-    adminUsersCache = result.users;
-    renderAdminUsers(result.users);
+        adminUsersCache = users;
+        renderAdminUsers(users);
 
-    // Populate audit user filter
-    const userFilter = document.getElementById('auditUserFilter');
-    if (userFilter) {
-        userFilter.innerHTML = '<option value="">All Users</option>';
-        result.users.forEach(user => {
-            userFilter.innerHTML += `<option value="${user.id}">${escapeHtml(user.email)}</option>`;
-        });
+        // Populate audit user filter
+        const userFilter = document.getElementById('auditUserFilter');
+        if (userFilter) {
+            userFilter.innerHTML = '<option value="">All Users</option>';
+            users.forEach(user => {
+                userFilter.innerHTML += `<option value="${user.id}">${escapeHtml(user.email || 'Unknown')}</option>`;
+            });
+        }
+    } catch (error) {
+        console.error('refreshAdminUsers error:', error);
+        listEl.innerHTML = '<div class="admin-loading">Failed to load users: ' + escapeHtml(error.message) + '</div>';
     }
 }
 
@@ -3311,16 +3323,21 @@ function closeUserDetailModal() {
 // Admin: Reset password
 async function adminResetPassword(userId) {
     const user = adminUsersCache.find(u => u.id === userId);
-    if (!user) return;
+    if (!user || !user.email) {
+        showToast('User email not found');
+        return;
+    }
 
-    const result = await adminApiCall('resetPassword', userId);
+    if (!confirm(`Send a password reset email to ${user.email}?`)) return;
 
-    if (result && result.success) {
-        showToast(`Password reset link generated for ${user.email}`);
-        // Show the link in an alert so admin can copy it
-        if (result.resetLink) {
-            alert(`Password reset link for ${user.email}:\n\n${result.resetLink}\n\nCopy and send this link to the user.`);
-        }
+    try {
+        // Use Firebase client-side password reset
+        await auth.sendPasswordResetEmail(user.email);
+        await db.logAudit('admin_password_reset', { targetUserId: userId, targetEmail: user.email });
+        showToast(`Password reset email sent to ${user.email}`);
+    } catch (error) {
+        console.error('adminResetPassword error:', error);
+        showToast('Error: ' + error.message);
     }
 }
 
@@ -3332,12 +3349,25 @@ async function adminSuspendUser(userId, suspend) {
     const action = suspend ? 'suspend' : 'unsuspend';
     if (!confirm(`Are you sure you want to ${action} ${user.email}?`)) return;
 
-    const result = await adminApiCall('suspendUser', userId, { suspend });
+    try {
+        // Use client-side Firestore to update suspension status
+        const success = await db.adminUpdateUser(userId, {
+            suspended: suspend,
+            suspendedAt: suspend ? Date.now() : null,
+            suspendedBy: suspend ? auth.currentUser?.uid : null
+        });
 
-    if (result && result.success) {
-        showToast(result.message);
-        closeUserDetailModal();
-        refreshAdminUsers();
+        if (success) {
+            await db.logAudit(suspend ? 'admin_suspend_user' : 'admin_unsuspend_user', { targetUserId: userId, targetEmail: user.email });
+            showToast(suspend ? 'User suspended successfully' : 'User unsuspended successfully');
+            closeUserDetailModal();
+            refreshAdminUsers();
+        } else {
+            showToast('Failed to update user');
+        }
+    } catch (error) {
+        console.error('adminSuspendUser error:', error);
+        showToast('Error: ' + error.message);
     }
 }
 
@@ -3346,17 +3376,30 @@ async function adminDeleteUser(userId) {
     const user = adminUsersCache.find(u => u.id === userId);
     if (!user) return;
 
-    if (!confirm(`Are you sure you want to DELETE ${user.email}?\n\nThis will permanently delete:\n- All their journal entries\n- All their contacts\n- Their account\n\nThis action CANNOT be undone!`)) return;
+    if (!confirm(`Are you sure you want to DELETE ${user.email}?\n\nThis will mark the user as deleted and suspend their account.\n\nThis action CANNOT be undone!`)) return;
 
-    // Double confirm for deletion
-    if (!confirm(`FINAL CONFIRMATION: Delete ${user.email} and all their data?`)) return;
+    if (!confirm(`FINAL CONFIRMATION: Delete ${user.email}?`)) return;
 
-    const result = await adminApiCall('deleteUser', userId);
+    try {
+        // Mark user as deleted and suspended (full deletion requires Admin SDK)
+        const success = await db.adminUpdateUser(userId, {
+            deleted: true,
+            deletedAt: Date.now(),
+            deletedBy: auth.currentUser?.uid,
+            suspended: true
+        });
 
-    if (result && result.success) {
-        showToast(result.message);
-        closeUserDetailModal();
-        refreshAdminUsers();
+        if (success) {
+            await db.logAudit('admin_delete_user', { targetUserId: userId, targetEmail: user.email });
+            showToast('User has been deleted and suspended');
+            closeUserDetailModal();
+            refreshAdminUsers();
+        } else {
+            showToast('Failed to delete user');
+        }
+    } catch (error) {
+        console.error('adminDeleteUser error:', error);
+        showToast('Error: ' + error.message);
     }
 }
 
@@ -3365,33 +3408,43 @@ async function adminSetRole(userId, newRole) {
     const user = adminUsersCache.find(u => u.id === userId);
     if (!user) return;
 
-    const result = await adminApiCall('setRole', userId, { role: newRole });
+    try {
+        // Use client-side Firestore to update role
+        const success = await db.adminUpdateUser(userId, { role: newRole });
 
-    if (result && result.success) {
-        showToast(result.message);
-        // Update cache
-        user.role = newRole;
-    } else {
+        if (success) {
+            await db.logAudit('admin_set_role', { targetUserId: userId, targetEmail: user.email, newRole });
+            showToast(`User role updated to ${newRole}`);
+            // Update cache
+            user.role = newRole;
+        } else {
+            showToast('Failed to update role');
+            // Reset select to original value
+            const select = document.getElementById('userRoleSelect');
+            if (select) select.value = user.role || 'user';
+        }
+    } catch (error) {
+        console.error('adminSetRole error:', error);
+        showToast('Error: ' + error.message);
         // Reset select to original value
         const select = document.getElementById('userRoleSelect');
         if (select) select.value = user.role || 'user';
     }
 }
 
-// Refresh audit logs
+// Refresh audit logs (using client-side Firestore)
 async function refreshAuditLogs() {
     const listEl = document.getElementById('adminAuditList');
     listEl.innerHTML = '<div class="admin-loading">Loading audit logs...</div>';
 
-    const result = await adminApiCall('getAuditLogs', null, { limit: 200 });
-
-    if (!result || !result.logs) {
-        listEl.innerHTML = '<div class="admin-loading">Failed to load audit logs</div>';
-        return;
+    try {
+        const logs = await db.getAuditLogs(200);
+        adminAuditLogsCache = logs;
+        renderAuditLogs(logs);
+    } catch (error) {
+        console.error('refreshAuditLogs error:', error);
+        listEl.innerHTML = '<div class="admin-loading">Failed to load audit logs: ' + escapeHtml(error.message) + '</div>';
     }
-
-    adminAuditLogsCache = result.logs;
-    renderAuditLogs(result.logs);
 }
 
 // Render audit logs
