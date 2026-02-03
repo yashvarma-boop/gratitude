@@ -787,6 +787,15 @@ function showScreen(screenName) {
             setDisplay(sendGratitudeBtn, 'none');
             setDisplay(addressBookBtn, 'flex');
             break;
+        case 'admin':
+            document.getElementById('adminScreen').classList.add('active');
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'none');
+            setDisplay(addressBookBtn, 'none');
+            break;
     }
 
     currentScreen = screenName;
