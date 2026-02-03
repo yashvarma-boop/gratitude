@@ -1,9 +1,50 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Each user can only read/write their own data
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superadmin'];
+    }
+
+    // Helper function to check if user is superadmin
+    function isSuperAdmin() {
+      return request.auth != null &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'superadmin';
+    }
+
+    // User profiles - users can read/write their own, admins can read all
+    match /users/{userId} {
+      // Users can read their own profile, admins can read all
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // Users can write their own profile
+      allow write: if request.auth != null && request.auth.uid == userId;
+
+      // Admins can update other users (for suspend, role changes, etc.)
+      allow update: if isAdmin();
+
+      // User's subcollections (sessions, contacts, etc.)
+      match /{subcollection}/{document=**} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // Admins can read user data for stats
+        allow read: if isAdmin();
+      }
+    }
+
+    // Audit logs - any authenticated user can create, admins can read all
+    match /audit_logs/{logId} {
+      // Any authenticated user can create audit logs
+      allow create: if request.auth != null;
+
+      // Admins can read all audit logs
+      allow read: if isAdmin();
+
+      // No updates or deletes allowed
+      allow update, delete: if false;
     }
   }
 }
