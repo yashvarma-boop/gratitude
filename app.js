@@ -3435,17 +3435,21 @@ function filterAuditLogs() {
 
 // Check and show admin button (called from auth.js after login)
 async function checkAndShowAdminButton() {
-    const adminBtn = document.getElementById('adminDashboardBtn');
-    if (!adminBtn) {
-        console.log('Admin button element not found');
-        return;
-    }
+    const adminDropdownBtn = document.getElementById('adminDashboardBtn');
+    const adminHeaderBtn = document.getElementById('adminHeaderBtn');
 
     const isAdmin = await db.isAdmin();
     console.log('User isAdmin:', isAdmin);
-    adminBtn.style.display = isAdmin ? 'block' : 'none';
+
+    // Show/hide both admin buttons
+    if (adminDropdownBtn) {
+        adminDropdownBtn.style.display = isAdmin ? 'block' : 'none';
+    }
+    if (adminHeaderBtn) {
+        adminHeaderBtn.style.display = isAdmin ? 'flex' : 'none';
+    }
 
     if (isAdmin) {
-        console.log('Admin Dashboard button is now visible');
+        console.log('Admin buttons are now visible');
     }
 }
