@@ -3099,8 +3099,10 @@ let currentAdminUser = null; // User being viewed in detail modal
 
 // Show admin dashboard screen
 function showAdminDashboard() {
+    console.log('showAdminDashboard called');
     closeUserMenu();
     showScreen('admin');
+    console.log('Admin screen shown, refreshing users...');
     refreshAdminUsers();
 }
 
@@ -3163,11 +3165,19 @@ async function adminApiCall(action, targetUserId = null, data = null) {
 
 // Refresh users list (using client-side Firestore)
 async function refreshAdminUsers() {
+    console.log('refreshAdminUsers called');
     const listEl = document.getElementById('adminUsersList');
+    console.log('adminUsersList element:', listEl);
+    if (!listEl) {
+        console.error('adminUsersList element not found!');
+        return;
+    }
     listEl.innerHTML = '<div class="admin-loading">Loading users...</div>';
 
     try {
+        console.log('Calling db.getAllUsers()...');
         const users = await db.getAllUsers();
+        console.log('Got users:', users);
 
         // Get session and contact counts for each user
         for (const user of users) {
