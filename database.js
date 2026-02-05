@@ -38,7 +38,7 @@ class GratitudeDB {
                 const itemRef = sessionRef.collection('items').doc();
                 await itemRef.set({
                     itemOrder: i + 1,
-                    textContent: items[i].text,
+                    textContent: items[i].text || '',
                     taggedContacts: items[i].taggedContacts || [],
                     createdAt: Date.now(),
                     updatedAt: Date.now()
@@ -190,7 +190,7 @@ class GratitudeDB {
             const itemRef = sessionRef.collection('items').doc();
             await itemRef.set({
                 itemOrder: i + 1,
-                textContent: items[i].text,
+                textContent: items[i].text || '',
                 taggedContacts: items[i].taggedContacts || [],
                 createdAt: Date.now(),
                 updatedAt: Date.now()
