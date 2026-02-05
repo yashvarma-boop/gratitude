@@ -373,6 +373,7 @@ async function initializeApp() {
 
     updateDateDisplay();
     initializeSuggestions();
+    initMentionListeners();
 }
 
 // Allow Enter key to submit forms

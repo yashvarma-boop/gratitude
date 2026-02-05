@@ -39,6 +39,7 @@ class GratitudeDB {
                 await itemRef.set({
                     itemOrder: i + 1,
                     textContent: items[i].text,
+                    taggedContacts: items[i].taggedContacts || [],
                     createdAt: Date.now(),
                     updatedAt: Date.now()
                 });
@@ -190,6 +191,7 @@ class GratitudeDB {
             await itemRef.set({
                 itemOrder: i + 1,
                 textContent: items[i].text,
+                taggedContacts: items[i].taggedContacts || [],
                 createdAt: Date.now(),
                 updatedAt: Date.now()
             });
