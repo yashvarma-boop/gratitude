@@ -757,6 +757,8 @@ function showScreen(screenName) {
             setDisplay(shareBtn, 'none');
             setDisplay(sendGratitudeBtn, 'flex');
             setDisplay(addressBookBtn, 'flex');
+            // Re-initialize mention listeners since entry screen textareas are now visible
+            initMentionListeners();
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
@@ -2468,6 +2470,7 @@ async function loadContacts() {
         try {
             const name = contact.name || 'Unknown';
             const phone = contact.phoneNumber || '';
+            const email = contact.email || '';
             const contactId = contact.id || '';
             if (!contactId) return;
 
@@ -2475,6 +2478,7 @@ async function loadContacts() {
             row.className = 'contact-row';
             row.dataset.name = name;
             row.dataset.phone = phone;
+            row.dataset.email = email;
             row.dataset.contactId = contactId;
 
             const isBirthdayToday = contact.birthday === todayKey;
@@ -2498,7 +2502,8 @@ async function loadContacts() {
                 ${avatarHTML}
                 <div class="contact-row-info">
                     <div class="contact-row-name">${escapeHtml(name)}</div>
-                    <div class="contact-row-phone">${escapeHtml(phone)}</div>
+                    ${phone ? `<div class="contact-row-phone">${escapeHtml(phone)}</div>` : ''}
+                    ${email ? `<div class="contact-row-email">${escapeHtml(email)}</div>` : ''}
                     ${birthdayDisplay ? `<div class="contact-row-birthday">🎂 ${birthdayDisplay}</div>` : ''}
                 </div>
                 ${isBirthdayToday ? '<span class="birthday-badge">🎂 Today!</span>' : ''}
@@ -2627,6 +2632,7 @@ async function editContact(contactId) {
         document.getElementById('editingContactId').value = String(contactId);
         document.getElementById('contactName').value = contact.name || '';
         document.getElementById('contactPhone').value = contact.phoneNumber || '';
+        document.getElementById('contactEmail').value = contact.email || '';
 
         // Set birthday if exists (need to convert MM-DD to date input format)
         if (contact.birthday) {
@@ -2662,6 +2668,7 @@ function cancelEditContact() {
     document.getElementById('editingContactId').value = '';
     document.getElementById('contactName').value = '';
     document.getElementById('contactPhone').value = '';
+    document.getElementById('contactEmail').value = '';
     document.getElementById('contactBirthday').value = '';
     currentContactPhoto = null;
     updateContactPhotoPreview(null);
@@ -2677,10 +2684,11 @@ async function saveContact() {
     const editingId = document.getElementById('editingContactId').value;
     const name = document.getElementById('contactName').value.trim();
     const phone = document.getElementById('contactPhone').value.trim();
+    const email = document.getElementById('contactEmail').value.trim();
     const birthdayInput = document.getElementById('contactBirthday').value;
 
-    if (!name || !phone) {
-        showToast('Please enter both name and phone number');
+    if (!name) {
+        showToast('Please enter a name');
         return;
     }
 
@@ -2697,12 +2705,12 @@ async function saveContact() {
     try {
         if (editingId) {
             // Update existing contact
-            await db.updateContact(editingId, name, phone, birthday, currentContactPhoto);
+            await db.updateContact(editingId, name, phone, email, birthday, currentContactPhoto);
             await db.logAudit('contact_update', { contactId: editingId, name });
             showToast('Contact updated!');
         } else {
             // Add new contact
-            const newId = await db.addContact(name, phone, birthday, currentContactPhoto);
+            const newId = await db.addContact(name, phone, email, birthday, currentContactPhoto);
             await db.logAudit('contact_create', { contactId: newId, name });
             showToast('Contact added!');
         }
@@ -2738,9 +2746,9 @@ async function handleCSVImport(event) {
         let skipped = 0;
 
         for (const contact of contacts) {
-            if (contact.name && contact.phone) {
+            if (contact.name) {
                 try {
-                    await db.addContact(contact.name, contact.phone, contact.birthday, null);
+                    await db.addContact(contact.name, contact.phone || '', contact.email || '', contact.birthday, null);
                     imported++;
                 } catch (e) {
                     skipped++;
@@ -2791,8 +2799,19 @@ function parseCSV(csvText) {
         h === 'birthday' || h === 'birth date' || h === 'date of birth' || h === 'dob'
     );
 
-    if (nameIndex === -1 || phoneIndex === -1) {
-        showToast('CSV must have Name and Phone columns');
+    // Email column: support Google/Outlook formats
+    let emailIndex = headers.findIndex(h =>
+        (h.includes('e-mail') || h.includes('email')) && h.includes('value')
+    );
+    // Fallback to any email column
+    if (emailIndex === -1) {
+        emailIndex = headers.findIndex(h =>
+            h.includes('e-mail') || h.includes('email')
+        );
+    }
+
+    if (nameIndex === -1) {
+        showToast('CSV must have a Name column');
         return [];
     }
 
@@ -2808,15 +2827,16 @@ function parseCSV(csvText) {
             name = `${name} ${values[lastNameIndex]}`.trim();
         }
 
-        const phone = values[phoneIndex] || '';
+        const phone = phoneIndex !== -1 ? (values[phoneIndex] || '') : '';
+        const email = emailIndex !== -1 ? (values[emailIndex] || '') : '';
         let birthday = null;
 
         if (birthdayIndex !== -1 && values[birthdayIndex]) {
             birthday = parseBirthdayFromCSV(values[birthdayIndex]);
         }
 
-        if (name && phone) {
-            contacts.push({ name, phone, birthday });
+        if (name) {
+            contacts.push({ name, phone, email, birthday });
         }
     }
 
@@ -2906,7 +2926,7 @@ async function exportContactsCSV() {
         }
 
         // Create CSV content (Google Contacts compatible format)
-        const headers = ['Name', 'Phone 1 - Value', 'Birthday'];
+        const headers = ['Name', 'Phone 1 - Value', 'E-mail 1 - Value', 'Birthday'];
         const rows = [headers.join(',')];
 
         contacts.forEach(contact => {
@@ -2917,6 +2937,7 @@ async function exportContactsCSV() {
             const row = [
                 `"${(contact.name || '').replace(/"/g, '""')}"`,
                 `"${(contact.phoneNumber || '').replace(/"/g, '""')}"`,
+                `"${(contact.email || '').replace(/"/g, '""')}"`,
                 birthdayFormatted
             ];
             rows.push(row.join(','));
@@ -3102,7 +3123,8 @@ function filterContacts() {
     contactItems.forEach(item => {
         const name = item.dataset.name?.toLowerCase() || '';
         const phone = item.dataset.phone?.toLowerCase() || '';
-        const matches = name.includes(searchTerm) || phone.includes(searchTerm);
+        const email = item.dataset.email?.toLowerCase() || '';
+        const matches = name.includes(searchTerm) || phone.includes(searchTerm) || email.includes(searchTerm);
 
         item.style.display = matches ? 'flex' : 'none';
         if (matches) visibleCount++;
@@ -3119,10 +3141,17 @@ function filterContacts() {
 // @ MENTION / TAGGING FUNCTIONS
 // ========================================
 
+// Track if global mention click listener is added
+let mentionClickListenerAdded = false;
+
 // Initialize mention listeners on textareas
 function initMentionListeners() {
     const textareas = document.querySelectorAll('.item-input');
     textareas.forEach(textarea => {
+        // Skip if already initialized (prevent duplicate listeners)
+        if (textarea.dataset.mentionInit) return;
+        textarea.dataset.mentionInit = 'true';
+
         textarea.addEventListener('input', handleMentionInput);
         textarea.addEventListener('keydown', handleMentionKeydown);
         textarea.addEventListener('blur', () => {
@@ -3131,12 +3160,15 @@ function initMentionListeners() {
         });
     });
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.mention-dropdown') && !e.target.closest('.item-input')) {
-            hideMentionDropdown();
-        }
-    });
+    // Close dropdown when clicking outside (only add once)
+    if (!mentionClickListenerAdded) {
+        mentionClickListenerAdded = true;
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.mention-dropdown') && !e.target.closest('.item-input')) {
+                hideMentionDropdown();
+            }
+        });
+    }
 }
 
 // Handle input in textarea to detect @ mentions
@@ -3215,7 +3247,7 @@ async function showMentionDropdown(textarea, searchText) {
     const newNameSpan = document.getElementById('mentionNewName');
 
     // Get contacts
-    const contacts = await db.getContacts();
+    const contacts = await db.getAllContacts();
     mentionState.contacts = contacts;
 
     // Filter contacts by search text
@@ -3230,6 +3262,8 @@ async function showMentionDropdown(textarea, searchText) {
             const photoHtml = contact.photo
                 ? `<img src="${contact.photo}" alt="${escapeHtml(contact.name)}">`
                 : initial;
+            // Show phone or email (whichever is available)
+            const contactInfo = contact.phoneNumber || contact.email || '';
             return `
                 <div class="mention-item ${index === 0 ? 'selected' : ''}"
                      data-contact-id="${contact.id}"
@@ -3237,7 +3271,7 @@ async function showMentionDropdown(textarea, searchText) {
                     <div class="mention-avatar">${photoHtml}</div>
                     <div class="mention-info">
                         <div class="mention-name">${escapeHtml(contact.name)}</div>
-                        <div class="mention-phone">${escapeHtml(contact.phone || '')}</div>
+                        <div class="mention-phone">${escapeHtml(contactInfo)}</div>
                     </div>
                 </div>
             `;
