@@ -2825,6 +2825,11 @@ header {
     font-size: 0.8125rem;
 }
 
+.contact-row-email {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+}
+
 .contact-row-birthday {
     font-size: 0.75rem;
     color: var(--text-muted);

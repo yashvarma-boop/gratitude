@@ -242,10 +242,11 @@ class GratitudeDB {
     }
 
     // Add a new contact
-    async addContact(name, phoneNumber, birthday = null, photo = null) {
+    async addContact(name, phoneNumber, email = null, birthday = null, photo = null) {
         const docRef = await this._col('contacts').add({
             name,
             phoneNumber,
+            email,
             birthday,
             photo,
             createdAt: Date.now(),
@@ -280,12 +281,13 @@ class GratitudeDB {
     }
 
     // Update contact
-    async updateContact(contactId, name, phoneNumber, birthday = null, photo = null) {
+    async updateContact(contactId, name, phoneNumber, email = null, birthday = null, photo = null) {
         const id = String(contactId);
         // Use set with merge instead of update — update throws if doc doesn't exist
         await this._col('contacts').doc(id).set({
             name,
             phoneNumber,
+            email,
             birthday,
             photo,
             updatedAt: Date.now()
