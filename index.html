@@ -282,6 +282,17 @@
                     <button id="entrySendGratitudeBtn" class="secondary-btn" onclick="showSendGratitude()">Send Gratitude 💌</button>
                     <button id="entryAddressBookBtn" class="secondary-btn" onclick="showAddressBook()">Address Book 📇</button>
                 </div>
+
+                <!-- Mention Autocomplete Dropdown -->
+                <div id="mentionDropdown" class="mention-dropdown" style="display:none;">
+                    <div class="mention-list" id="mentionList"></div>
+                    <div class="mention-create" id="mentionCreate" style="display:none;">
+                        <button class="mention-create-btn" onclick="createContactFromMention()">
+                            <span class="mention-create-icon">+</span>
+                            <span class="mention-create-text">Create new contact "<span id="mentionNewName"></span>"</span>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             <!-- Historical View Screen -->

@@ -24,6 +24,21 @@ let itemMediaData = {
     3: []
 };
 
+// Mention/Tagging State
+let mentionState = {
+    isActive: false,
+    textarea: null,
+    startPos: 0,
+    searchText: '',
+    selectedIndex: 0,
+    contacts: []
+};
+let itemTaggedContacts = {
+    1: [],
+    2: [],
+    3: []
+};
+
 // Gratitude Suggestions - 50 prompts
 const gratitudeSuggestions = [
     "A person who made you smile today",
@@ -693,6 +708,12 @@ function loadExistingEntry(sessionDetails) {
             }));
             renderMediaPreview(item.itemOrder);
         }
+
+        // Load tagged contacts
+        if (item.taggedContacts && item.taggedContacts.length > 0) {
+            itemTaggedContacts[item.itemOrder] = item.taggedContacts;
+            renderItemTags(item.itemOrder);
+        }
     });
 
     showToast('Entry loaded');
@@ -910,6 +931,7 @@ async function saveEntry() {
         const textarea = document.querySelector(`textarea[data-item-id="${i}"]`);
         const text = textarea.value.trim();
         const media = itemMediaData[i] || [];
+        const taggedContacts = itemTaggedContacts[i] || [];
 
         // Track if there's any content at all
         if (text || media.length > 0) {
@@ -919,7 +941,8 @@ async function saveEntry() {
         // Always push the item (even if empty)
         items.push({
             text,
-            media
+            media,
+            taggedContacts
         });
     }
 
@@ -987,6 +1010,9 @@ function clearForm() {
 
     itemMediaData = { 1: [], 2: [], 3: [] };
     [1, 2, 3].forEach(id => renderMediaPreview(id));
+
+    // Clear tagged contacts
+    clearAllTags();
 }
 
 // Show History
@@ -3087,6 +3113,332 @@ function filterContacts() {
     if (countElement) {
         countElement.textContent = `${visibleCount} contact${visibleCount !== 1 ? 's' : ''} found`;
     }
+}
+
+// ========================================
+// @ MENTION / TAGGING FUNCTIONS
+// ========================================
+
+// Initialize mention listeners on textareas
+function initMentionListeners() {
+    const textareas = document.querySelectorAll('.item-input');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', handleMentionInput);
+        textarea.addEventListener('keydown', handleMentionKeydown);
+        textarea.addEventListener('blur', () => {
+            // Delay to allow click on dropdown
+            setTimeout(() => hideMentionDropdown(), 200);
+        });
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.mention-dropdown') && !e.target.closest('.item-input')) {
+            hideMentionDropdown();
+        }
+    });
+}
+
+// Handle input in textarea to detect @ mentions
+function handleMentionInput(e) {
+    const textarea = e.target;
+    const text = textarea.value;
+    const cursorPos = textarea.selectionStart;
+
+    // Find the @ symbol before cursor
+    let atPos = -1;
+    for (let i = cursorPos - 1; i >= 0; i--) {
+        if (text[i] === '@') {
+            atPos = i;
+            break;
+        }
+        // Stop if we hit a space or newline (no @ in this word)
+        if (text[i] === ' ' || text[i] === '\n') {
+            break;
+        }
+    }
+
+    if (atPos >= 0) {
+        const searchText = text.substring(atPos + 1, cursorPos).toLowerCase();
+        mentionState.isActive = true;
+        mentionState.textarea = textarea;
+        mentionState.startPos = atPos;
+        mentionState.searchText = searchText;
+        mentionState.selectedIndex = 0;
+
+        showMentionDropdown(textarea, searchText);
+    } else {
+        hideMentionDropdown();
+    }
+}
+
+// Handle keyboard navigation in mention dropdown
+function handleMentionKeydown(e) {
+    if (!mentionState.isActive) return;
+
+    const dropdown = document.getElementById('mentionDropdown');
+    const items = dropdown.querySelectorAll('.mention-item');
+
+    switch (e.key) {
+        case 'ArrowDown':
+            e.preventDefault();
+            mentionState.selectedIndex = Math.min(mentionState.selectedIndex + 1, items.length - 1);
+            updateMentionSelection();
+            break;
+        case 'ArrowUp':
+            e.preventDefault();
+            mentionState.selectedIndex = Math.max(mentionState.selectedIndex - 1, 0);
+            updateMentionSelection();
+            break;
+        case 'Enter':
+        case 'Tab':
+            if (items.length > 0 && mentionState.selectedIndex < items.length) {
+                e.preventDefault();
+                const selectedItem = items[mentionState.selectedIndex];
+                const contactId = selectedItem.dataset.contactId;
+                if (contactId) {
+                    selectMentionContact(contactId);
+                }
+            }
+            break;
+        case 'Escape':
+            hideMentionDropdown();
+            break;
+    }
+}
+
+// Show mention dropdown with filtered contacts
+async function showMentionDropdown(textarea, searchText) {
+    const dropdown = document.getElementById('mentionDropdown');
+    const list = document.getElementById('mentionList');
+    const createSection = document.getElementById('mentionCreate');
+    const newNameSpan = document.getElementById('mentionNewName');
+
+    // Get contacts
+    const contacts = await db.getContacts();
+    mentionState.contacts = contacts;
+
+    // Filter contacts by search text
+    const filtered = contacts.filter(c =>
+        c.name && c.name.toLowerCase().includes(searchText.toLowerCase())
+    ).slice(0, 5);
+
+    // Render contact list
+    if (filtered.length > 0) {
+        list.innerHTML = filtered.map((contact, index) => {
+            const initial = (contact.name || '?').charAt(0).toUpperCase();
+            const photoHtml = contact.photo
+                ? `<img src="${contact.photo}" alt="${escapeHtml(contact.name)}">`
+                : initial;
+            return `
+                <div class="mention-item ${index === 0 ? 'selected' : ''}"
+                     data-contact-id="${contact.id}"
+                     onclick="selectMentionContact('${contact.id}')">
+                    <div class="mention-avatar">${photoHtml}</div>
+                    <div class="mention-info">
+                        <div class="mention-name">${escapeHtml(contact.name)}</div>
+                        <div class="mention-phone">${escapeHtml(contact.phone || '')}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    } else {
+        list.innerHTML = '';
+    }
+
+    // Show "create new contact" option if search text exists
+    if (searchText.length > 0) {
+        newNameSpan.textContent = searchText;
+        createSection.style.display = 'block';
+    } else {
+        createSection.style.display = 'none';
+    }
+
+    // Position dropdown below textarea cursor
+    const rect = textarea.getBoundingClientRect();
+    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+
+    dropdown.style.position = 'fixed';
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.top = `${rect.bottom + 4}px`;
+    dropdown.style.display = 'block';
+}
+
+// Update selection highlight in dropdown
+function updateMentionSelection() {
+    const items = document.querySelectorAll('.mention-item');
+    items.forEach((item, index) => {
+        item.classList.toggle('selected', index === mentionState.selectedIndex);
+    });
+}
+
+// Hide mention dropdown
+function hideMentionDropdown() {
+    const dropdown = document.getElementById('mentionDropdown');
+    if (dropdown) {
+        dropdown.style.display = 'none';
+    }
+    mentionState.isActive = false;
+}
+
+// Select a contact from mention dropdown
+function selectMentionContact(contactId) {
+    const contact = mentionState.contacts.find(c => c.id === contactId);
+    if (!contact || !mentionState.textarea) return;
+
+    const textarea = mentionState.textarea;
+    const text = textarea.value;
+    const beforeAt = text.substring(0, mentionState.startPos);
+    const afterCursor = text.substring(textarea.selectionStart);
+
+    // Insert @Name
+    const mentionText = `@${contact.name} `;
+    textarea.value = beforeAt + mentionText + afterCursor;
+
+    // Move cursor after the inserted mention
+    const newCursorPos = mentionState.startPos + mentionText.length;
+    textarea.setSelectionRange(newCursorPos, newCursorPos);
+    textarea.focus();
+
+    // Add to tagged contacts for this item
+    const itemId = textarea.dataset.itemId;
+    if (itemId && !itemTaggedContacts[itemId].find(c => c.id === contactId)) {
+        itemTaggedContacts[itemId].push({
+            id: contact.id,
+            name: contact.name,
+            phone: contact.phone
+        });
+        renderItemTags(itemId);
+    }
+
+    hideMentionDropdown();
+}
+
+// Create a new contact from mention
+async function createContactFromMention() {
+    const name = mentionState.searchText;
+    if (!name) return;
+
+    hideMentionDropdown();
+
+    // Show a simple prompt for phone number
+    const phone = prompt(`Enter phone number for "${name}":`);
+    if (!phone) return;
+
+    try {
+        // Save the new contact
+        const newId = await db.saveContact({
+            name: name,
+            phone: phone,
+            birthday: null,
+            photo: null
+        });
+
+        if (newId) {
+            // Add to tagged contacts
+            const textarea = mentionState.textarea;
+            if (textarea) {
+                const text = textarea.value;
+                const beforeAt = text.substring(0, mentionState.startPos);
+                const afterCursor = text.substring(textarea.selectionStart);
+
+                const mentionText = `@${name} `;
+                textarea.value = beforeAt + mentionText + afterCursor;
+
+                const newCursorPos = mentionState.startPos + mentionText.length;
+                textarea.setSelectionRange(newCursorPos, newCursorPos);
+                textarea.focus();
+
+                const itemId = textarea.dataset.itemId;
+                if (itemId) {
+                    itemTaggedContacts[itemId].push({
+                        id: newId,
+                        name: name,
+                        phone: phone
+                    });
+                    renderItemTags(itemId);
+                }
+            }
+
+            showToast(`Contact "${name}" created!`);
+            await db.logAudit('contact_create', { contactId: newId, name, fromMention: true });
+        }
+    } catch (error) {
+        console.error('Error creating contact:', error);
+        showToast('Failed to create contact');
+    }
+}
+
+// Render tags below a textarea
+function renderItemTags(itemId) {
+    const container = document.querySelector(`.gratitude-item[data-item="${itemId}"]`);
+    if (!container) return;
+
+    // Find or create tags container
+    let tagsContainer = container.querySelector('.entry-tags');
+    if (!tagsContainer) {
+        tagsContainer = document.createElement('div');
+        tagsContainer.className = 'entry-tags';
+        const textarea = container.querySelector('.item-input');
+        if (textarea) {
+            textarea.parentNode.insertBefore(tagsContainer, textarea.nextSibling);
+        }
+    }
+
+    const tags = itemTaggedContacts[itemId] || [];
+    if (tags.length === 0) {
+        tagsContainer.style.display = 'none';
+        return;
+    }
+
+    tagsContainer.style.display = 'flex';
+    tagsContainer.innerHTML = tags.map(tag => `
+        <div class="entry-tag" onclick="sendMessageToTaggedContact('${tag.id}')" title="Click to send message to ${escapeHtml(tag.name)}">
+            <span class="entry-tag-icon">@</span>
+            <span>${escapeHtml(tag.name)}</span>
+            <button class="entry-tag-remove" onclick="removeTag(${itemId}, '${tag.id}'); event.stopPropagation();" title="Remove tag">×</button>
+        </div>
+    `).join('');
+}
+
+// Remove a tag from an item
+function removeTag(itemId, contactId) {
+    itemTaggedContacts[itemId] = itemTaggedContacts[itemId].filter(c => c.id !== contactId);
+    renderItemTags(itemId);
+}
+
+// Send message to a tagged contact
+function sendMessageToTaggedContact(contactId) {
+    // Navigate to send gratitude screen with pre-selected contact
+    showSendGratitude();
+
+    // Wait for screen to load, then select the contact
+    setTimeout(() => {
+        const recipientSelect = document.getElementById('recipientSelect');
+        if (recipientSelect) {
+            recipientSelect.value = contactId;
+            handleRecipientChange();
+        }
+    }, 100);
+}
+
+// Clear all tags (called when clearing form)
+function clearAllTags() {
+    itemTaggedContacts = { 1: [], 2: [], 3: [] };
+    [1, 2, 3].forEach(id => renderItemTags(id));
+}
+
+// Get all tagged contacts for saving with entry
+function getAllTaggedContacts() {
+    const allTags = [];
+    [1, 2, 3].forEach(itemId => {
+        itemTaggedContacts[itemId].forEach(tag => {
+            if (!allTags.find(t => t.id === tag.id)) {
+                allTags.push(tag);
+            }
+        });
+    });
+    return allTags;
 }
 
 // ========================================

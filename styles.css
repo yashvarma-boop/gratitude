@@ -3783,3 +3783,176 @@ header {
         flex: 0 0 100%;
     }
 }
+
+/* ========================================
+   MENTION AUTOCOMPLETE
+   ======================================== */
+.mention-dropdown {
+    position: absolute;
+    background: var(--bg-card);
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-soft);
+    max-height: 200px;
+    overflow-y: auto;
+    z-index: 1000;
+    min-width: 200px;
+    max-width: 300px;
+}
+
+.mention-list {
+    padding: var(--spacing-xs) 0;
+}
+
+.mention-item {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-sm) var(--spacing-md);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.mention-item:hover,
+.mention-item.selected {
+    background: rgba(155, 175, 149, 0.2);
+}
+
+.mention-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-sage);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-right: var(--spacing-sm);
+    flex-shrink: 0;
+}
+
+.mention-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.mention-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.mention-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+}
+
+.mention-phone {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.mention-create {
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    padding: var(--spacing-xs);
+}
+
+.mention-create-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    transition: all var(--transition);
+    border-radius: var(--radius-sm);
+}
+
+.mention-create-btn:hover {
+    background: rgba(155, 175, 149, 0.2);
+}
+
+.mention-create-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--accent-purple);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    margin-right: var(--spacing-sm);
+}
+
+.mention-create-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+/* Tagged contact in text - highlighted and clickable */
+.mention-tag {
+    background: rgba(155, 175, 149, 0.3);
+    color: var(--text-primary);
+    padding: 2px 6px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all var(--transition);
+}
+
+.mention-tag:hover {
+    background: rgba(155, 175, 149, 0.5);
+}
+
+/* Tags display below textarea */
+.entry-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.entry-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(155, 175, 149, 0.2);
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.entry-tag:hover {
+    background: rgba(155, 175, 149, 0.4);
+}
+
+.entry-tag-icon {
+    font-size: 0.75rem;
+}
+
+.entry-tag-remove {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.1);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.625rem;
+    color: var(--text-muted);
+    margin-left: 2px;
+}
+
+.entry-tag-remove:hover {
+    background: rgba(0, 0, 0, 0.2);
+    color: var(--text-primary);
+}
