@@ -757,6 +757,8 @@ function showScreen(screenName) {
             setDisplay(shareBtn, 'none');
             setDisplay(sendGratitudeBtn, 'flex');
             setDisplay(addressBookBtn, 'flex');
+            // Re-initialize mention listeners since entry screen textareas are now visible
+            initMentionListeners();
             break;
         case 'history':
             document.getElementById('historyScreen').classList.add('active');
@@ -3119,10 +3121,17 @@ function filterContacts() {
 // @ MENTION / TAGGING FUNCTIONS
 // ========================================
 
+// Track if global mention click listener is added
+let mentionClickListenerAdded = false;
+
 // Initialize mention listeners on textareas
 function initMentionListeners() {
     const textareas = document.querySelectorAll('.item-input');
     textareas.forEach(textarea => {
+        // Skip if already initialized (prevent duplicate listeners)
+        if (textarea.dataset.mentionInit) return;
+        textarea.dataset.mentionInit = 'true';
+
         textarea.addEventListener('input', handleMentionInput);
         textarea.addEventListener('keydown', handleMentionKeydown);
         textarea.addEventListener('blur', () => {
@@ -3131,12 +3140,15 @@ function initMentionListeners() {
         });
     });
 
-    // Close dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.mention-dropdown') && !e.target.closest('.item-input')) {
-            hideMentionDropdown();
-        }
-    });
+    // Close dropdown when clicking outside (only add once)
+    if (!mentionClickListenerAdded) {
+        mentionClickListenerAdded = true;
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.mention-dropdown') && !e.target.closest('.item-input')) {
+                hideMentionDropdown();
+            }
+        });
+    }
 }
 
 // Handle input in textarea to detect @ mentions
