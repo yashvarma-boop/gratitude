@@ -933,7 +933,13 @@ async function saveEntry() {
         const textarea = document.querySelector(`textarea[data-item-id="${i}"]`);
         const text = textarea.value.trim();
         const media = itemMediaData[i] || [];
-        const taggedContacts = itemTaggedContacts[i] || [];
+        // Sanitize taggedContacts to ensure no undefined values
+        const taggedContacts = (itemTaggedContacts[i] || []).map(c => ({
+            id: c.id || '',
+            name: c.name || '',
+            phone: c.phone || '',
+            email: c.email || ''
+        }));
 
         // Track if there's any content at all
         if (text || media.length > 0) {
@@ -3338,9 +3344,10 @@ function selectMentionContact(contactId) {
     const itemId = textarea.dataset.itemId;
     if (itemId && !itemTaggedContacts[itemId].find(c => c.id === contactId)) {
         itemTaggedContacts[itemId].push({
-            id: contact.id,
-            name: contact.name,
-            phone: contact.phone
+            id: contact.id || '',
+            name: contact.name || '',
+            phone: contact.phoneNumber || '',
+            email: contact.email || ''
         });
         renderItemTags(itemId);
     }
@@ -3355,18 +3362,12 @@ async function createContactFromMention() {
 
     hideMentionDropdown();
 
-    // Show a simple prompt for phone number
-    const phone = prompt(`Enter phone number for "${name}":`);
-    if (!phone) return;
+    // Show a simple prompt for phone number (optional)
+    const phone = prompt(`Enter phone number for "${name}" (optional):`);
 
     try {
-        // Save the new contact
-        const newId = await db.saveContact({
-            name: name,
-            phone: phone,
-            birthday: null,
-            photo: null
-        });
+        // Save the new contact (phone is optional, email is empty)
+        const newId = await db.addContact(name, phone || '', '', null, null);
 
         if (newId) {
             // Add to tagged contacts
@@ -3386,9 +3387,10 @@ async function createContactFromMention() {
                 const itemId = textarea.dataset.itemId;
                 if (itemId) {
                     itemTaggedContacts[itemId].push({
-                        id: newId,
-                        name: name,
-                        phone: phone
+                        id: newId || '',
+                        name: name || '',
+                        phone: phone || '',
+                        email: ''
                     });
                     renderItemTags(itemId);
                 }
