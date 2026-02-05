@@ -3961,3 +3961,38 @@ header {
     background: rgba(0, 0, 0, 0.2);
     color: var(--text-primary);
 }
+
+/* Detail view tagged contacts */
+.detail-item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+    margin-top: var(--spacing-sm);
+}
+
+.detail-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(155, 175, 149, 0.15);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.8125rem;
+    color: var(--accent-sage);
+    font-weight: 500;
+}
+
+.detail-tag.clickable {
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.detail-tag.clickable:hover {
+    background: rgba(155, 175, 149, 0.3);
+    transform: translateY(-1px);
+}
+
+.detail-tag .tag-action {
+    font-size: 0.75rem;
+    margin-left: 2px;
+}

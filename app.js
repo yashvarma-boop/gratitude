@@ -1257,6 +1257,26 @@ async function showDetail(sessionId) {
             itemDiv.appendChild(text);
         }
 
+        // Tagged contacts
+        if (item.taggedContacts && item.taggedContacts.length > 0) {
+            const tagsDiv = document.createElement('div');
+            tagsDiv.className = 'detail-item-tags';
+            tagsDiv.innerHTML = item.taggedContacts.map(tag => {
+                const hasPhone = tag.phone && tag.phone.trim();
+                const hasEmail = tag.email && tag.email.trim();
+                return `
+                    <span class="detail-tag ${hasPhone || hasEmail ? 'clickable' : ''}"
+                          ${hasPhone ? `onclick="openSmsWithContact('${escapeHtml(tag.name)}', '${escapeHtml(tag.phone)}', '${escapeHtml(tag.email || '')}')"` :
+                            hasEmail ? `onclick="openEmailWithContact('${escapeHtml(tag.name)}', '${escapeHtml(tag.email)}')"` : ''}
+                          title="${hasPhone ? 'Click to send SMS' : hasEmail ? 'Click to send email' : 'No contact info'}">
+                        @${escapeHtml(tag.name)}
+                        ${hasPhone ? '<span class="tag-action">💬</span>' : hasEmail ? '<span class="tag-action">📧</span>' : ''}
+                    </span>
+                `;
+            }).join('');
+            itemDiv.appendChild(tagsDiv);
+        }
+
         // Item media
         if (item.media && item.media.length > 0) {
             const mediaGrid = document.createElement('div');
@@ -3443,19 +3463,64 @@ function removeTag(itemId, contactId) {
     renderItemTags(itemId);
 }
 
-// Send message to a tagged contact
+// Send message to a tagged contact (from entry screen tags)
 function sendMessageToTaggedContact(contactId) {
-    // Navigate to send gratitude screen with pre-selected contact
-    showSendGratitude();
-
-    // Wait for screen to load, then select the contact
-    setTimeout(() => {
-        const recipientSelect = document.getElementById('recipientSelect');
-        if (recipientSelect) {
-            recipientSelect.value = contactId;
-            handleRecipientChange();
+    // Find the contact in the current tagged contacts
+    let contact = null;
+    for (let i = 1; i <= 3; i++) {
+        const found = (itemTaggedContacts[i] || []).find(c => c.id === contactId);
+        if (found) {
+            contact = found;
+            break;
         }
-    }, 100);
+    }
+
+    if (contact && contact.phone) {
+        openSmsWithContact(contact.name, contact.phone, contact.email || '');
+    } else if (contact && contact.email) {
+        openEmailWithContact(contact.name, contact.email);
+    } else {
+        showToast('No phone or email for this contact');
+    }
+}
+
+// Open SMS screen with contact pre-loaded
+async function openSmsWithContact(name, phone, email = '') {
+    showScreen('sendGratitude');
+    selectChannel('sms');
+    await loadRecipientsList();
+
+    // Set the phone number in the recipient field
+    const recipientSelect = document.getElementById('recipientSelect');
+    const recipientPhone = document.getElementById('recipientPhone');
+
+    if (recipientPhone) {
+        recipientPhone.value = phone;
+    }
+
+    // Try to select from dropdown if phone matches
+    if (recipientSelect) {
+        for (let option of recipientSelect.options) {
+            if (option.value === phone) {
+                recipientSelect.value = phone;
+                break;
+            }
+        }
+    }
+
+    // Pre-fill a gratitude message
+    const messageInput = document.getElementById('gratitudeMessage');
+    if (messageInput && !messageInput.value) {
+        messageInput.value = `Hi ${name}! I wanted to let you know how grateful I am for you. `;
+        messageInput.focus();
+    }
+}
+
+// Open email client with contact
+function openEmailWithContact(name, email) {
+    const subject = encodeURIComponent('A note of gratitude');
+    const body = encodeURIComponent(`Hi ${name},\n\nI wanted to let you know how grateful I am for you.\n\n`);
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`, '_blank');
 }
 
 // Clear all tags (called when clearing form)
