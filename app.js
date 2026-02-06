@@ -2458,8 +2458,11 @@ async function showAddressBook() {
 
 async function loadContacts() {
     let contacts = [];
+    let gratitudeCounts = {};
     try {
         contacts = await db.getAllContacts();
+        // Load gratitude counts for all contacts
+        gratitudeCounts = await db.getGratitudeCountsForContacts();
     } catch (err) {
         console.error('loadContacts failed:', err);
         showToast('Error loading contacts: ' + (err.message || 'Unknown error'));
@@ -2524,11 +2527,17 @@ async function loadContacts() {
                 ? `<div class="contact-row-avatar"><img src="${contact.photo}" alt="${escapeHtml(name)}"></div>`
                 : `<div class="contact-row-avatar-placeholder">${initial}</div>`;
 
+            // Get gratitude count for this contact
+            const gratitudeCount = gratitudeCounts[contactId] || 0;
+            const gratitudeBadge = gratitudeCount > 0
+                ? `<span class="gratitude-count-badge" title="${gratitudeCount} gratitude ${gratitudeCount === 1 ? 'entry' : 'entries'}">💚 ${gratitudeCount}</span>`
+                : '';
+
             row.innerHTML = `
                 <input type="checkbox" class="contact-row-checkbox" data-id="${contactId}" onchange="updateSelectedCount()">
                 ${avatarHTML}
-                <div class="contact-row-info">
-                    <div class="contact-row-name">${escapeHtml(name)}</div>
+                <div class="contact-row-info" onclick="showContactDetail('${contactId}')" style="cursor: pointer;">
+                    <div class="contact-row-name">${escapeHtml(name)} ${gratitudeBadge}</div>
                     ${phone ? `<div class="contact-row-phone">${escapeHtml(phone)}</div>` : ''}
                     ${email ? `<div class="contact-row-email">${escapeHtml(email)}</div>` : ''}
                     ${birthdayDisplay ? `<div class="contact-row-birthday">🎂 ${birthdayDisplay}</div>` : ''}
@@ -2545,6 +2554,120 @@ async function loadContacts() {
             console.error('Error rendering contact:', contact, err);
         }
     });
+}
+
+// Show contact detail view with gratitude entries and sent messages
+async function showContactDetail(contactId) {
+    const contact = await db.getContact(contactId);
+    if (!contact) {
+        showToast('Contact not found');
+        return;
+    }
+
+    // Get gratitude entries for this contact
+    const entries = await db.getEntriesForContact(contactId);
+    const sentMessages = await db.getSentMessagesForContact(contactId);
+
+    // Create modal
+    const modal = document.createElement('div');
+    modal.className = 'contact-detail-modal';
+    modal.id = 'contactDetailModal';
+
+    const initial = (contact.name || '?').charAt(0).toUpperCase();
+    const avatarHTML = contact.photo
+        ? `<img src="${contact.photo}" alt="${escapeHtml(contact.name)}" class="contact-detail-avatar">`
+        : `<div class="contact-detail-avatar-placeholder">${initial}</div>`;
+
+    // Format entries HTML
+    const entriesHTML = entries.length > 0
+        ? entries.map(entry => {
+            const date = new Date(entry.sessionDate + 'T00:00:00');
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const typeIcon = entry.type === 'better' ? '📈' : '💚';
+            return `
+                <div class="contact-entry-item" onclick="showDetail('${entry.sessionId}'); closeContactDetail();">
+                    <span class="contact-entry-date">${dateStr}</span>
+                    <span class="contact-entry-type">${typeIcon}</span>
+                    <span class="contact-entry-text">${escapeHtml(entry.textContent || '').substring(0, 60)}${(entry.textContent || '').length > 60 ? '...' : ''}</span>
+                </div>
+            `;
+        }).join('')
+        : '<p class="empty-state-text">No gratitude entries yet for this contact.</p>';
+
+    // Format sent messages HTML
+    const messagesHTML = sentMessages.length > 0
+        ? sentMessages.map(msg => {
+            const date = new Date(msg.sentAt);
+            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const channelIcon = msg.channel === 'sms' ? '💬' : msg.channel === 'whatsapp' ? '📱' : '📧';
+            return `
+                <div class="contact-message-item">
+                    <span class="contact-message-date">${dateStr}</span>
+                    <span class="contact-message-channel">${channelIcon}</span>
+                    <span class="contact-message-text">${escapeHtml(msg.message || '').substring(0, 60)}${(msg.message || '').length > 60 ? '...' : ''}</span>
+                </div>
+            `;
+        }).join('')
+        : '<p class="empty-state-text">No messages sent yet.</p>';
+
+    modal.innerHTML = `
+        <div class="contact-detail-content">
+            <button class="contact-detail-close" onclick="closeContactDetail()">&times;</button>
+
+            <div class="contact-detail-header">
+                ${avatarHTML}
+                <div class="contact-detail-info">
+                    <h2 class="contact-detail-name">${escapeHtml(contact.name)}</h2>
+                    ${contact.phoneNumber ? `<p class="contact-detail-phone">${escapeHtml(contact.phoneNumber)}</p>` : ''}
+                    ${contact.email ? `<p class="contact-detail-email">${escapeHtml(contact.email)}</p>` : ''}
+                </div>
+            </div>
+
+            <div class="contact-detail-stats">
+                <div class="contact-stat">
+                    <span class="contact-stat-number">${entries.length}</span>
+                    <span class="contact-stat-label">Gratitude Entries</span>
+                </div>
+                <div class="contact-stat">
+                    <span class="contact-stat-number">${sentMessages.length}</span>
+                    <span class="contact-stat-label">Messages Sent</span>
+                </div>
+            </div>
+
+            <div class="contact-detail-actions">
+                ${contact.phoneNumber ? `<button class="primary-btn" onclick="openSmsWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}', '${escapeHtml(contact.email || '')}'); closeContactDetail();">Send Message 💬</button>` : ''}
+                ${contact.email && !contact.phoneNumber ? `<button class="primary-btn" onclick="openEmailWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.email)}'); closeContactDetail();">Send Email 📧</button>` : ''}
+                <button class="secondary-btn" onclick="editContact('${contactId}'); closeContactDetail();">Edit Contact</button>
+            </div>
+
+            <div class="contact-detail-section">
+                <h3>Gratitude Entries</h3>
+                <div class="contact-entries-list">
+                    ${entriesHTML}
+                </div>
+            </div>
+
+            <div class="contact-detail-section">
+                <h3>Sent Messages</h3>
+                <div class="contact-messages-list">
+                    ${messagesHTML}
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    // Close on background click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeContactDetail();
+    });
+}
+
+// Close contact detail modal
+function closeContactDetail() {
+    const modal = document.getElementById('contactDetailModal');
+    if (modal) modal.remove();
 }
 
 // Update selected count display
@@ -3112,6 +3235,18 @@ async function sendGratitudeMessage() {
 
         const channelLabel = selectedChannel === 'whatsapp' ? 'WhatsApp message' : 'SMS';
         await db.logAudit('message_send', { channel: selectedChannel, recipient: cleanPhone });
+
+        // Record sent message against contact if found
+        try {
+            const contacts = await db.getAllContacts();
+            const contact = contacts.find(c => c.phoneNumber === recipientPhone || c.phoneNumber === cleanPhone);
+            if (contact) {
+                await db.recordSentMessage(contact.id, message, selectedChannel);
+            }
+        } catch (err) {
+            console.error('Error recording sent message:', err);
+        }
+
         showToast(`${channelLabel} sent successfully! 💌`);
 
         // Clear the form
