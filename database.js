@@ -355,6 +355,94 @@ class GratitudeDB {
         await this._col('contacts').doc(String(contactId)).delete();
     }
 
+    // Get all entries where a contact is tagged
+    async getEntriesForContact(contactId) {
+        try {
+            const sessions = await this.getAllSessions();
+            const matchingEntries = [];
+
+            for (const session of sessions) {
+                const sessionWithDetails = await this.getSessionWithDetails(session.id);
+                if (!sessionWithDetails || !sessionWithDetails.items) continue;
+
+                for (const item of sessionWithDetails.items) {
+                    if (item.taggedContacts && item.taggedContacts.some(tc => tc.id === contactId)) {
+                        matchingEntries.push({
+                            sessionId: session.id,
+                            sessionDate: session.sessionDate,
+                            type: session.type || 'grateful',
+                            textContent: item.textContent,
+                            itemOrder: item.itemOrder
+                        });
+                    }
+                }
+            }
+
+            // Sort by date descending
+            matchingEntries.sort((a, b) => b.sessionDate.localeCompare(a.sessionDate));
+            return matchingEntries;
+        } catch (err) {
+            console.error('getEntriesForContact error:', err);
+            return [];
+        }
+    }
+
+    // Get gratitude counts for all contacts (returns map of contactId -> count)
+    async getGratitudeCountsForContacts() {
+        try {
+            const sessions = await this.getAllSessions();
+            const counts = {};
+
+            for (const session of sessions) {
+                const sessionWithDetails = await this.getSessionWithDetails(session.id);
+                if (!sessionWithDetails || !sessionWithDetails.items) continue;
+
+                for (const item of sessionWithDetails.items) {
+                    if (item.taggedContacts) {
+                        for (const tc of item.taggedContacts) {
+                            if (tc.id) {
+                                counts[tc.id] = (counts[tc.id] || 0) + 1;
+                            }
+                        }
+                    }
+                }
+            }
+
+            return counts;
+        } catch (err) {
+            console.error('getGratitudeCountsForContacts error:', err);
+            return {};
+        }
+    }
+
+    // Record a sent message to a contact
+    async recordSentMessage(contactId, message, channel = 'sms') {
+        try {
+            await this._col('contacts').doc(String(contactId))
+                .collection('sentMessages').add({
+                    message,
+                    channel,
+                    sentAt: Date.now()
+                });
+        } catch (err) {
+            console.error('recordSentMessage error:', err);
+        }
+    }
+
+    // Get sent messages for a contact
+    async getSentMessagesForContact(contactId) {
+        try {
+            const snapshot = await this._col('contacts').doc(String(contactId))
+                .collection('sentMessages').get();
+            const messages = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            messages.sort((a, b) => (b.sentAt || 0) - (a.sentAt || 0));
+            return messages;
+        } catch (err) {
+            console.error('getSentMessagesForContact error:', err);
+            return [];
+        }
+    }
+
     // ========== AUDIT LOGGING ==========
 
     // Log an action to the audit trail
