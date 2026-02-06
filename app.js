@@ -819,6 +819,15 @@ function showScreen(screenName) {
             setDisplay(sendGratitudeBtn, 'none');
             setDisplay(addressBookBtn, 'none');
             break;
+        case 'contactDetail':
+            document.getElementById('contactDetailScreen').classList.add('active');
+            setDisplay(archiveBtn, 'none');
+            setDisplay(homeBtn, 'flex');
+            setDisplay(settingsBtn, 'flex');
+            setDisplay(shareBtn, 'none');
+            setDisplay(sendGratitudeBtn, 'flex');
+            setDisplay(addressBookBtn, 'flex');
+            break;
     }
 
     currentScreen = screenName;
@@ -2556,7 +2565,7 @@ async function loadContacts() {
     });
 }
 
-// Show contact detail view with gratitude entries and sent messages
+// Show contact detail screen with gratitude entries and sent messages
 async function showContactDetail(contactId) {
     const contact = await db.getContact(contactId);
     if (!contact) {
@@ -2564,107 +2573,123 @@ async function showContactDetail(contactId) {
         return;
     }
 
+    // Store current contact ID for back navigation
+    window.currentContactId = contactId;
+
     // Get gratitude entries for this contact
     const entries = await db.getEntriesForContact(contactId);
     const sentMessages = await db.getSentMessagesForContact(contactId);
 
-    // Create modal
-    const modal = document.createElement('div');
-    modal.className = 'contact-detail-modal';
-    modal.id = 'contactDetailModal';
+    const headerEl = document.getElementById('contactDetailHeader');
+    const contentEl = document.getElementById('contactDetailContent');
 
     const initial = (contact.name || '?').charAt(0).toUpperCase();
     const avatarHTML = contact.photo
-        ? `<img src="${contact.photo}" alt="${escapeHtml(contact.name)}" class="contact-detail-avatar">`
-        : `<div class="contact-detail-avatar-placeholder">${initial}</div>`;
+        ? `<img src="${contact.photo}" alt="${escapeHtml(contact.name)}" class="cdp-avatar">`
+        : `<div class="cdp-avatar-placeholder">${initial}</div>`;
 
-    // Format entries HTML
-    const entriesHTML = entries.length > 0
-        ? entries.map(entry => {
-            const date = new Date(entry.sessionDate + 'T00:00:00');
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const typeIcon = entry.type === 'better' ? '📈' : '💚';
-            return `
-                <div class="contact-entry-item" onclick="showDetail('${entry.sessionId}'); closeContactDetail();">
-                    <span class="contact-entry-date">${dateStr}</span>
-                    <span class="contact-entry-type">${typeIcon}</span>
-                    <span class="contact-entry-text">${escapeHtml(entry.textContent || '').substring(0, 60)}${(entry.textContent || '').length > 60 ? '...' : ''}</span>
-                </div>
-            `;
-        }).join('')
-        : '<p class="empty-state-text">No gratitude entries yet for this contact.</p>';
-
-    // Format sent messages HTML
-    const messagesHTML = sentMessages.length > 0
-        ? sentMessages.map(msg => {
-            const date = new Date(msg.sentAt);
-            const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-            const channelIcon = msg.channel === 'sms' ? '💬' : msg.channel === 'whatsapp' ? '📱' : '📧';
-            return `
-                <div class="contact-message-item">
-                    <span class="contact-message-date">${dateStr}</span>
-                    <span class="contact-message-channel">${channelIcon}</span>
-                    <span class="contact-message-text">${escapeHtml(msg.message || '').substring(0, 60)}${(msg.message || '').length > 60 ? '...' : ''}</span>
-                </div>
-            `;
-        }).join('')
-        : '<p class="empty-state-text">No messages sent yet.</p>';
-
-    modal.innerHTML = `
-        <div class="contact-detail-content">
-            <button class="contact-detail-close" onclick="closeContactDetail()">&times;</button>
-
-            <div class="contact-detail-header">
-                ${avatarHTML}
-                <div class="contact-detail-info">
-                    <h2 class="contact-detail-name">${escapeHtml(contact.name)}</h2>
-                    ${contact.phoneNumber ? `<p class="contact-detail-phone">${escapeHtml(contact.phoneNumber)}</p>` : ''}
-                    ${contact.email ? `<p class="contact-detail-email">${escapeHtml(contact.email)}</p>` : ''}
-                </div>
-            </div>
-
-            <div class="contact-detail-stats">
-                <div class="contact-stat">
-                    <span class="contact-stat-number">${entries.length}</span>
-                    <span class="contact-stat-label">Gratitude Entries</span>
-                </div>
-                <div class="contact-stat">
-                    <span class="contact-stat-number">${sentMessages.length}</span>
-                    <span class="contact-stat-label">Messages Sent</span>
-                </div>
-            </div>
-
-            <div class="contact-detail-actions">
-                ${contact.phoneNumber ? `<button class="primary-btn" onclick="openSmsWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}', '${escapeHtml(contact.email || '')}'); closeContactDetail();">Send Message 💬</button>` : ''}
-                ${contact.email && !contact.phoneNumber ? `<button class="primary-btn" onclick="openEmailWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.email)}'); closeContactDetail();">Send Email 📧</button>` : ''}
-                <button class="secondary-btn" onclick="editContact('${contactId}'); closeContactDetail();">Edit Contact</button>
-            </div>
-
-            <div class="contact-detail-section">
-                <h3>Gratitude Entries</h3>
-                <div class="contact-entries-list">
-                    ${entriesHTML}
-                </div>
-            </div>
-
-            <div class="contact-detail-section">
-                <h3>Sent Messages</h3>
-                <div class="contact-messages-list">
-                    ${messagesHTML}
+    // Build header
+    headerEl.innerHTML = `
+        <button class="cdp-back-btn" onclick="showAddressBook()">← Back</button>
+        <div class="cdp-header-content">
+            ${avatarHTML}
+            <div class="cdp-header-info">
+                <h1 class="cdp-name">${escapeHtml(contact.name)}</h1>
+                <div class="cdp-contact-info">
+                    ${contact.phoneNumber ? `<span class="cdp-phone">📱 ${escapeHtml(contact.phoneNumber)}</span>` : ''}
+                    ${contact.email ? `<span class="cdp-email">📧 ${escapeHtml(contact.email)}</span>` : ''}
                 </div>
             </div>
         </div>
+        <div class="cdp-stats">
+            <div class="cdp-stat">
+                <span class="cdp-stat-number">${entries.length}</span>
+                <span class="cdp-stat-label">Gratitude Entries</span>
+            </div>
+            <div class="cdp-stat">
+                <span class="cdp-stat-number">${sentMessages.length}</span>
+                <span class="cdp-stat-label">Messages Sent</span>
+            </div>
+        </div>
+        <div class="cdp-actions">
+            ${contact.phoneNumber ? `<button class="primary-btn" onclick="openSmsWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.phoneNumber)}', '${escapeHtml(contact.email || '')}')">Send Message 💬</button>` : ''}
+            ${contact.email && !contact.phoneNumber ? `<button class="primary-btn" onclick="openEmailWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.email)}')">Send Email 📧</button>` : ''}
+            <button class="secondary-btn" onclick="editContact('${contactId}'); showAddressBook();">Edit</button>
+        </div>
     `;
 
-    document.body.appendChild(modal);
+    // Build entries list - this is the main content
+    let entriesHTML = '';
+    if (entries.length > 0) {
+        entriesHTML = `
+            <div class="cdp-section">
+                <h2 class="cdp-section-title">Gratitude Entries for ${escapeHtml(contact.name)}</h2>
+                <div class="cdp-entries-list">
+                    ${entries.map(entry => {
+                        const date = new Date(entry.sessionDate + 'T00:00:00');
+                        const dateStr = date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+                        const typeLabel = entry.type === 'better' ? '1% Better' : 'Grateful';
+                        const typeIcon = entry.type === 'better' ? '📈' : '💚';
+                        return `
+                            <div class="cdp-entry-card" onclick="showDetail('${entry.sessionId}')">
+                                <div class="cdp-entry-header">
+                                    <span class="cdp-entry-date">${dateStr}</span>
+                                    <span class="cdp-entry-type">${typeIcon} ${typeLabel}</span>
+                                </div>
+                                <p class="cdp-entry-text">${escapeHtml(entry.textContent || 'No text content')}</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    } else {
+        entriesHTML = `
+            <div class="cdp-section">
+                <h2 class="cdp-section-title">Gratitude Entries</h2>
+                <div class="cdp-empty-state">
+                    <div class="cdp-empty-icon">💭</div>
+                    <p>No gratitude entries mention ${escapeHtml(contact.name)} yet.</p>
+                    <p class="cdp-empty-hint">Tag them with @${escapeHtml(contact.name)} in your entries!</p>
+                </div>
+            </div>
+        `;
+    }
 
-    // Close on background click
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) closeContactDetail();
-    });
+    // Build sent messages section
+    let messagesHTML = '';
+    if (sentMessages.length > 0) {
+        messagesHTML = `
+            <div class="cdp-section">
+                <h2 class="cdp-section-title">Messages Sent</h2>
+                <div class="cdp-messages-list">
+                    ${sentMessages.map(msg => {
+                        const date = new Date(msg.sentAt);
+                        const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                        const channelIcon = msg.channel === 'sms' ? '💬' : msg.channel === 'whatsapp' ? '📱' : '📧';
+                        const channelLabel = msg.channel === 'sms' ? 'SMS' : msg.channel === 'whatsapp' ? 'WhatsApp' : 'Email';
+                        return `
+                            <div class="cdp-message-card">
+                                <div class="cdp-message-header">
+                                    <span class="cdp-message-date">${dateStr}</span>
+                                    <span class="cdp-message-channel">${channelIcon} ${channelLabel}</span>
+                                </div>
+                                <p class="cdp-message-text">${escapeHtml(msg.message || '')}</p>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    contentEl.innerHTML = entriesHTML + messagesHTML;
+
+    // Show the screen
+    showScreen('contactDetail');
 }
 
-// Close contact detail modal
+// Close contact detail (legacy function for compatibility)
 function closeContactDetail() {
     const modal = document.getElementById('contactDetailModal');
     if (modal) modal.remove();
