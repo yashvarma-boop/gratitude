@@ -1249,11 +1249,11 @@ async function showDetail(sessionId) {
 
         itemDiv.appendChild(itemHeader);
 
-        // Item text
+        // Item text - use linkifyMentions to make @mentions clickable
         if (item.textContent) {
             const text = document.createElement('div');
             text.className = 'detail-item-text';
-            text.textContent = item.textContent;
+            text.innerHTML = linkifyMentions(item.textContent, item.taggedContacts || []);
             itemDiv.appendChild(text);
         }
 
@@ -2190,7 +2190,8 @@ function renderCalendarDetailPane(session, birthdays = []) {
             text.className = 'detail-item-text';
             text.style.paddingLeft = 'calc(28px + var(--spacing-sm))';
             text.style.fontSize = '0.9375rem';
-            text.textContent = item.textContent;
+            // Use linkifyMentions to make @mentions clickable
+            text.innerHTML = linkifyMentions(item.textContent, item.taggedContacts || []);
             itemDiv.appendChild(text);
         }
 
@@ -3138,6 +3139,40 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// Helper function to linkify @mentions in text
+function linkifyMentions(text, taggedContacts = []) {
+    if (!text) return '';
+
+    // Escape HTML first
+    let html = escapeHtml(text);
+
+    // Find all @mentions in the text
+    const mentionRegex = /@(\w+(?:\s+\w+)?)/g;
+
+    html = html.replace(mentionRegex, (match, name) => {
+        // Try to find this contact in taggedContacts
+        const contact = taggedContacts.find(c =>
+            c.name && c.name.toLowerCase() === name.toLowerCase()
+        );
+
+        if (contact) {
+            const hasPhone = contact.phone && contact.phone.trim();
+            const hasEmail = contact.email && contact.email.trim();
+
+            if (hasPhone) {
+                return `<span class="text-mention clickable" onclick="openSmsWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.phone)}', '${escapeHtml(contact.email || '')}')" title="Send message to ${escapeHtml(contact.name)}">@${escapeHtml(contact.name)}</span>`;
+            } else if (hasEmail) {
+                return `<span class="text-mention clickable" onclick="openEmailWithContact('${escapeHtml(contact.name)}', '${escapeHtml(contact.email)}')" title="Email ${escapeHtml(contact.name)}">@${escapeHtml(contact.name)}</span>`;
+            }
+        }
+
+        // Return styled but not clickable if no contact info
+        return `<span class="text-mention">@${escapeHtml(name)}</span>`;
+    });
+
+    return html;
 }
 
 // Filter contacts by search term

@@ -3996,3 +3996,21 @@ header {
     font-size: 0.75rem;
     margin-left: 2px;
 }
+
+/* Clickable @mentions in text */
+.text-mention {
+    color: var(--accent-sage);
+    font-weight: 500;
+}
+
+.text-mention.clickable {
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-underline-offset: 2px;
+}
+
+.text-mention.clickable:hover {
+    color: var(--accent-sage-dark, #7a9a74);
+    text-decoration-style: solid;
+}
